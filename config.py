@@ -26,7 +26,7 @@ class Config:
     # App Metadata
     APP_VERSION = "3.1"
     IS_LIMITED_BUILD = True # Set to True for builds without API key setup
-    UPDATE_CHECK_URL = "https://raw.githubusercontent.com/dummy-user/git-tool-suite/main/version.json" # Placeholder
+    UPDATE_CHECK_URL = "https://raw.githubusercontent.com/tan-mike/git-tool-suite/master/version.json"
 
     @staticmethod
     def get_api_key():

@@ -85,26 +85,25 @@ class SettingsApp:
 
     def _update_worker(self):
         try:
-            # Simulate check since URL is placeholder
-            # In real app: response = requests.get(Config.UPDATE_CHECK_URL)
-            # data = response.json()
-            # latest_version = data['version']
+            response = requests.get(Config.UPDATE_CHECK_URL, timeout=5)
+            response.raise_for_status()
+            data = response.json()
             
-            # Simulating a response for demonstration
-            import time
-            time.sleep(1.5)
-            latest_version = "3.1" # Same version
+            latest_version = data.get('version')
+            release_url = data.get('release_url', "https://github.com/tan-mike/git-tool-suite/releases")
             
-            self.parent.after(0, self._show_update_result, latest_version)
+            self.parent.after(0, lambda: self._show_update_result(latest_version, release_url))
         except Exception as e:
             self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to check for updates:\n{e}"))
         finally:
             self.parent.after(0, lambda: self.check_btn.config(state=tk.NORMAL, text="Check for Updates"))
 
-    def _show_update_result(self, latest_version):
+    def _show_update_result(self, latest_version, release_url):
         current = Config.APP_VERSION
+        # Simple string comparison (works for simple versions like "3.1" vs "3.2")
+        # For more complex semver, we might need packaging.version
         if latest_version > current:
             if messagebox.askyesno("Update Available", f"A new version ({latest_version}) is available!\n\nOpen download page?"):
-                webbrowser.open("https://github.com/dummy-user/git-tool-suite/releases")
+                webbrowser.open(release_url)
         else:
             messagebox.showinfo("Up to Date", f"You are running the latest version ({current}).")
