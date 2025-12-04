@@ -318,7 +318,7 @@ class PullRequestApp:
             messagebox.showerror(
                 "API Key Not Configured",
                 "Gemini API key is not configured.\n\n"
-                "For development: Add GEMINI_API_KEY_OVERRIDE to .env file\n"
+                "For development: Add GEMINI_API_KEY to .env file\n"
                 "For production: Run build_helpers/obfuscate_key.py before building"
             )
             return

@@ -71,8 +71,8 @@ def inject_into_config(part1, part2, part3):
 
 def main():
     # Try to read from .env file first, then environment variable
-    # Check both GEMINI_API_KEY (production) and GEMINI_API_KEY_OVERRIDE (dev)
-    api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GEMINI_API_KEY_OVERRIDE')
+    # Check both GEMINI_API_KEY (production) and GEMINI_API_KEY (dev)
+    api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GEMINI_API_KEY')
     
     if not api_key:
         print("ERROR: GEMINI_API_KEY not found")

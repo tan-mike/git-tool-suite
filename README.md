@@ -56,7 +56,14 @@ Download and run the standalone executable - no installation required!
    pip install -r requirements.txt
    ```
 
-3. **Run the application:**
+3. **Configure Environment (Optional, for AI features):**
+   Create a `.env` file in the root directory:
+
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+4. **Run the application:**
    ```bash
    python main.py
    ```
@@ -95,9 +102,14 @@ GitToolSuite_v3/
 For developers who want to create a standalone executable:
 
 1. **Set API key (optional, for AI features):**
+   Set `GEMINI_API_KEY` in your environment variables OR ensure it is present in your `.env` file.
 
    ```bash
+   # Option A: Environment Variable (Linux/Mac)
    export GEMINI_API_KEY="your_api_key_here"
+
+   # Option B: Environment Variable (Windows PowerShell)
+   $env:GEMINI_API_KEY="your_api_key_here"
    ```
 
 2. **Obfuscate and inject key:**
@@ -143,7 +155,3 @@ User preferences are automatically saved to `~/.git-tool-suite/preferences.json`
 ## License
 
 This project is for personal/educational use.
-
-## Credits
-
-Created as an enhancement to Git Tool Suite v2.2

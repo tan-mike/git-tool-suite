@@ -32,12 +32,12 @@ class Config:
     def get_api_key():
         """
         Returns the API key with the following priority:
-        1. .env file (GEMINI_API_KEY_OVERRIDE) - for development
+        1. .env file (GEMINI_API_KEY) - for development
         2. User Preferences (if allowed)
         3. Bundled obfuscated key - for production builds
         """
         # Priority 1: Read from .env file (development)
-        env_key = os.getenv('GEMINI_API_KEY_OVERRIDE')
+        env_key = os.getenv('GEMINI_API_KEY')
         if env_key:
             return env_key
             
