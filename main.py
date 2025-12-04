@@ -1,0 +1,200 @@
+"""
+Git Tools Suite - Main Application Entry Point
+Version 3.0 (Modular Edition)
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox, scrolledtext
+import threading
+import datetime
+
+# Import our modular components
+from apps.propagator import GitPropagatorApp
+from apps.cleanup import BranchCleanerApp
+from apps.pull_request import PullRequestApp
+from apps.commit_generator import CommitGeneratorApp
+from apps.settings import SettingsApp
+from ai.gemini_client import GeminiClient
+from config import Config
+
+
+class GitToolsSuiteApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Git Productivity Tools Suite Ver: 3.1 (Limited Edition)")
+        self.root.geometry("950x850")
+
+        self.joke_result = None
+        self.gemini_client = GeminiClient() if Config.get_api_key() else None
+
+        # Create tabs
+        self.notebook = ttk.Notebook(root)
+        
+        tab_propagator = ttk.Frame(self.notebook)
+        tab_cleanup = ttk.Frame(self.notebook)
+        tab_pr_creator = ttk.Frame(self.notebook)
+        tab_commit = ttk.Frame(self.notebook)
+        tab_settings = ttk.Frame(self.notebook)
+        
+        self.notebook.add(tab_propagator, text='Commit Propagator')
+        self.notebook.add(tab_cleanup, text='Branch Cleanup')
+        self.notebook.add(tab_pr_creator, text='Create Pull Request')
+        self.notebook.add(tab_commit, text='Commit Tool')
+        self.notebook.add(tab_settings, text='Settings')
+        self.notebook.pack(expand=True, fill="both", pady=(0, 5))
+
+        # Initialize app instances
+        self.propagator_app = GitPropagatorApp(tab_propagator)
+        self.cleanup_app = BranchCleanerApp(tab_cleanup)
+        self.pr_app = PullRequestApp(tab_pr_creator)
+        self.commit_app = CommitGeneratorApp(tab_commit)
+        self.settings_app = SettingsApp(tab_settings)
+
+        self.tab_apps = [self.propagator_app, self.cleanup_app, self.pr_app, self.commit_app, self.settings_app]
+
+        # Bottom frame with joke button
+        bottom_frame = ttk.Frame(root, padding=(10, 5, 10, 10))
+        bottom_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        self.joke_button = ttk.Button(bottom_frame, text="Tell me a joke", command=self.tell_joke_threaded)
+        self.joke_button.pack(side=tk.RIGHT, padx=5)
+
+        if not self.gemini_client:
+            self.joke_button.config(state=tk.DISABLED)
+            ttk.Label(bottom_frame, text="Gemini features disabled (API key not configured)").pack(side=tk.LEFT)
+
+        self.check_for_birthday_threaded()
+
+    def tell_joke_threaded(self):
+        """Entry point for joke generation."""
+        self.joke_button.config(state=tk.DISABLED)
+        self.joke_result = None
+
+        loading_popup = tk.Toplevel(self.root)
+        loading_popup.transient(self.root)
+        loading_popup.overrideredirect(True)
+        
+        loading_label = ttk.Label(loading_popup, text="  Thinking of a joke...  ", padding=20, font=("Helvetica", 12))
+        loading_label.pack()
+        
+        loading_popup.update_idletasks()
+        
+        popup_width = loading_label.winfo_width()
+        popup_height = loading_label.winfo_height()
+        main_win_x, main_win_y = self.root.winfo_x(), self.root.winfo_y()
+        main_win_width, main_win_height = self.root.winfo_width(), self.root.winfo_height()
+        position_x = main_win_x + (main_win_width // 2) - (popup_width // 2)
+        position_y = main_win_y + (main_win_height // 2) - (popup_height // 2)
+        loading_popup.geometry(f"{popup_width}x{popup_height}+{position_x}+{position_y}")
+
+        self.root.after(50, self._start_joke_worker_and_poller, loading_popup)
+
+    def _start_joke_worker_and_poller(self, loading_popup):
+        loading_popup.grab_set()
+        threading.Thread(target=self._tell_joke_worker, daemon=True).start()
+        self.check_for_joke_result(loading_popup)
+
+    def _tell_joke_worker(self):
+        """Background thread for generating a joke."""
+        self.log_to_active_tab("Requesting a joke from the AI...")
+        self.joke_result = self.gemini_client.get_joke()
+
+    def check_for_joke_result(self, loading_popup):
+        """Polls for joke result."""
+        if self.joke_result is not None:
+            loading_popup.destroy()
+            if "Error:" not in self.joke_result:
+                self.show_centered_popup("Here's a Joke!", self.joke_result)
+            self.joke_button.config(state=tk.NORMAL)
+        else:
+            self.root.after(100, self.check_for_joke_result, loading_popup)
+
+    def log_to_active_tab(self, message):
+        try:
+            current_tab_index = self.notebook.index(self.notebook.select())
+            active_app = self.tab_apps[current_tab_index]
+            if hasattr(active_app, 'log_message'):
+                active_app.log_message(message)
+            elif hasattr(active_app, 'log'):
+                timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+                active_app.log(f"[{timestamp}] {message}")
+        except Exception as e:
+            print(f"Failed to log to active tab: {e}")
+
+    def show_centered_popup(self, title, message):
+        """Shows a popup with typewriter effect."""
+        popup = tk.Toplevel(self.root)
+        popup.title(title)
+        popup.resizable(False, False)
+        popup.grab_set()
+
+        popup_width, popup_height = 450, 250
+        self.root.update_idletasks()
+        main_x, main_y = self.root.winfo_x(), self.root.winfo_y()
+        main_w, main_h = self.root.winfo_width(), self.root.winfo_height()
+        
+        x = main_x + (main_w // 2) - (popup_width // 2)
+        y = main_y + (main_h // 2) - (popup_height // 2)
+        popup.geometry(f"{popup_width}x{popup_height}+{x}+{y}")
+
+        frame = ttk.Frame(popup, padding=15)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        text_area = scrolledtext.ScrolledText(frame, wrap=tk.WORD, font=("Segoe UI", 10))
+        text_area.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+
+        ok_button = ttk.Button(frame, text="OK", command=popup.destroy)
+        ok_button.pack()
+        
+        def insert_text_safely(i=0):
+            if not text_area.winfo_exists(): 
+                return
+            if i < len(message):
+                text_area.insert(tk.END, message[i])
+                text_area.see(tk.END)
+                text_area.after(10, insert_text_safely, i + 1)
+            else:
+                text_area.config(state=tk.DISABLED)
+
+        insert_text_safely()
+        popup.focus_force()
+        popup.wait_window()
+
+    def check_for_birthday_threaded(self):
+        today = datetime.date.today()
+        if self.gemini_client and today.month == 12 and today.day == 12:
+            threading.Thread(target=self._birthday_worker, daemon=True).start()
+
+    def _birthday_worker(self):
+        self.log_to_active_tab("Ahh..It's that special day...")
+        message = self.gemini_client.get_birthday_message("Yie Thin")
+        if "Error:" not in message:
+            self.root.after(0, self.show_centered_popup, "A Special Message for Yie Thin!", message)
+
+
+def main():
+    """Main entry point."""
+    import tkinter as tk
+    from tkinter import messagebox
+    
+    # Check for GitPython dependency
+    try:
+        from git import Repo, exc
+    except ImportError:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror(
+            "Dependency Missing",
+            "The 'gitpython' library is required for the Branch Cleanup tab.\n\n"
+            "Please install it by running:\n'pip install gitpython'"
+        )
+        root.destroy()
+        return
+    
+    root = tk.Tk()
+    app = GitToolsSuiteApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
