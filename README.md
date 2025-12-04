@@ -40,6 +40,14 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Joke generator powered by Google Gemini
 - Birthday messages (December 12th)
 
+### 6. Automatic Updates (NEW)
+
+- Check for updates from Settings tab
+- **One-click auto-update** for executable builds
+- Downloads and installs updates automatically
+- Seamless restart after update
+- Manual download option available
+
 ## Installation
 
 ### For Users (Executable)
@@ -139,9 +147,10 @@ User preferences are automatically saved to `~/.git-tool-suite/preferences.json`
 
 ## New in Version 3.2
 
-- **Update Version Gist** - Update version.json in the repository
-- **Enabled update checks** - Check for updates when starting the application
-- **GitHub Actions** - Update version.json in the repository
+- **Automatic Updates** - One-click download and install updates from Settings tab
+- **Update Checking** - Automatic version checking against GitHub releases
+- **GitHub Actions** - Automated Gist synchronization for version information
+- **Improved Documentation** - Better API key setup and configuration guides
 
 ## New in Version 3.1
 

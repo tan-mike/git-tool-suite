@@ -6,14 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Automatic Update System**: Full auto-update functionality for executable builds.
+  - One-click download and installation of new versions.
+  - Background download with progress indicator.
+  - Automatic executable replacement via updater script.
+  - Seamless restart after update completion.
 - **Update Check Feature**: Implemented automatic update checking via Settings tab.
   - Fetches latest version from public Gist.
   - Compares current version against latest release.
-  - Opens release page in browser when update is available.
+  - Three-option update dialog: Auto-install, Manual download, or Skip.
 - **GitHub Actions Workflow**: Automated Gist updates for `version.json`.
   - Triggers on push to `master` branch when `version.json` changes.
   - Automatically synchronizes version info to public Gist.
 - **Version Management**: Created `version.json` for centralized version tracking.
+  - Includes version number, release URL, and download URL.
+- **Updater Script**: Helper script (`updater.py`) for safe executable replacement.
 
 ### Changed
 

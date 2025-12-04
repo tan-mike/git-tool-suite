@@ -26,7 +26,7 @@ class Config:
     # App Metadata
     APP_VERSION = "3.2"
     IS_LIMITED_BUILD = True # Set to True for builds without API key setup
-    UPDATE_CHECK_URL = "https://gist.githubusercontent.com/tan-mike/37c92fd3e04d4663fc70948567ec932d/raw/c2458f8ed531ed0b0a55f6596e8dda4f1ce2eef2/version.json"
+    UPDATE_CHECK_URL = "https://gist.githubusercontent.com/tan-mike/37c92fd3e04d4663fc70948567ec932d/raw/version.json"
 
     @staticmethod
     def get_api_key():
