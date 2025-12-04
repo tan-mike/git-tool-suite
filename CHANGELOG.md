@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0] - 2025-12-04
+## [3.1] - 2025-12-04
 
 ### Added
 
@@ -19,4 +19,4 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Updated application title to "Git Productivity Tools Suite Ver: 1.0.0".
+- Updated application title to "Git Productivity Tools Suite Ver: 3.1".

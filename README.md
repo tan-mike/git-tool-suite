@@ -1,4 +1,4 @@
-# Git Tools Suite v1.0.0
+# Git Tools Suite v3.1
 
 A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, and AI-powered commit generation.
 

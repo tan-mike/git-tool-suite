@@ -24,8 +24,8 @@ class Config:
     _PREFS_FILE = _CONFIG_DIR / 'preferences.json'
     
     # App Metadata
-    APP_VERSION = "1.0.0"
-    IS_LIMITED_BUILD = False # Set to True for builds without API key setup
+    APP_VERSION = "3.1"
+    IS_LIMITED_BUILD = True # Set to True for builds without API key setup
     UPDATE_CHECK_URL = "https://raw.githubusercontent.com/dummy-user/git-tool-suite/main/version.json" # Placeholder
 
     @staticmethod
