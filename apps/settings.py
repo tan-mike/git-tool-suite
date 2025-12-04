@@ -94,7 +94,8 @@ class SettingsApp:
             
             self.parent.after(0, lambda: self._show_update_result(latest_version, release_url))
         except Exception as e:
-            self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to check for updates:\n{e}"))
+            error_msg = f"Failed to check for updates:\n{e}"
+            self.parent.after(0, lambda: messagebox.showerror("Error", error_msg))
         finally:
             self.parent.after(0, lambda: self.check_btn.config(state=tk.NORMAL, text="Check for Updates"))
 

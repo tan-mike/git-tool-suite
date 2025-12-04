@@ -1,4 +1,4 @@
-# Git Tools Suite v3.1
+# Git Tools Suite v3.2
 
 A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, and AI-powered commit generation.
 
@@ -136,6 +136,12 @@ User preferences are automatically saved to `~/.git-tool-suite/preferences.json`
 - Propagator settings (max commits, auto-push)
 - Cleanup defaults (prefix, days, scope)
 - PR creator defaults
+
+## New in Version 3.2
+
+- **Update Version Gist** - Update version.json in the repository
+- **Enabled update checks** - Check for updates when starting the application
+- **GitHub Actions** - Update version.json in the repository
 
 ## New in Version 3.1
 
