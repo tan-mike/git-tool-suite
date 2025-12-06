@@ -52,7 +52,17 @@ def main():
         # Restart the application
         print("Restarting application...")
         time.sleep(1)
-        subprocess.Popen([str(current_exe)], cwd=current_exe.parent)
+        
+        # Hide console window on Windows
+        creation_flags = 0
+        if sys.platform == 'win32':
+            creation_flags = subprocess.CREATE_NO_WINDOW
+        
+        subprocess.Popen(
+            [str(current_exe)], 
+            cwd=current_exe.parent,
+            creationflags=creation_flags
+        )
         
     except Exception as e:
         print(f"ERROR during update: {e}")

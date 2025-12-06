@@ -4,6 +4,7 @@ Shared Git utility functions used across multiple apps.
 
 import subprocess
 import shlex
+import sys
 
 
 def run_git_command(command, repo_path, check=True):
@@ -25,13 +26,20 @@ def run_git_command(command, repo_path, check=True):
         raise ValueError("Repository path not set.")
     
     command_parts = ["git"] + shlex.split(command)
+    
+    # Hide console window when running as frozen executable on Windows
+    creation_flags = 0
+    if sys.platform == 'win32':
+        creation_flags = subprocess.CREATE_NO_WINDOW
+    
     process = subprocess.run(
         command_parts,
         cwd=repo_path,
         capture_output=True,
         text=True,
         encoding='utf-8',
-        errors='ignore'
+        errors='ignore',
+        creationflags=creation_flags
     )
     
     if check:

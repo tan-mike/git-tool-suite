@@ -133,63 +133,177 @@ class SettingsApp:
             messagebox.showinfo("Up to Date", f"You are running the latest version ({current}).")
     
     def _download_and_install_update(self, download_url):
-        """Download and install the update automatically."""
+        """Download and install the update automatically with progress tracking."""
         import sys
         from pathlib import Path
         import tempfile
         import subprocess
+        import time
         
         try:
-            # Show progress
+            # Show progress window
             progress_window = tk.Toplevel(self.parent)
             progress_window.title("Downloading Update")
-            progress_window.geometry("400x100")
+            progress_window.geometry("450x120")
             progress_window.transient(self.parent)
             progress_window.grab_set()
             
-            ttk.Label(progress_window, text="Downloading update...", font=("", 10)).pack(pady=20)
-            progress_bar = ttk.Progressbar(progress_window, mode='indeterminate')
-            progress_bar.pack(fill=tk.X, padx=20, pady=10)
-            progress_bar.start()
+            # Status label
+            status_label = ttk.Label(progress_window, text="Initializing download...", font=("", 9))
+            status_label.pack(pady=(15, 5))
             
-            # Download in thread
+            # Determinate progress bar
+            progress_bar = ttk.Progressbar(progress_window, mode='determinate', length=400)
+            progress_bar.pack(padx=20, pady=5)
+            
+            # Speed label
+            speed_label = ttk.Label(progress_window, text="", font=("", 8))
+            speed_label.pack(pady=(5, 15))
+            
+            # Download in thread with retry logic
             def download():
-                try:
-                    response = requests.get(download_url, stream=True, timeout=30)
-                    response.raise_for_status()
+                max_retries = 3
+                chunk_size = 32 * 1024 * 1024  # 32 MB chunks for maximum speed
+                update_interval = 5 * 1024 * 1024  # Update UI every 5 MB downloaded
+                
+                for attempt in range(max_retries):
+                    session = None
+                    try:
+                        # Update status
+                        self.parent.after(0, status_label.config, {'text': f'Connecting... (Attempt {attempt + 1}/{max_retries})'})
+                        
+                        # Use session for connection pooling and better performance
+                        session = requests.Session()
+                        session.headers.update({
+                            'User-Agent': 'GitToolSuite-Updater',
+                            'Accept-Encoding': 'gzip, deflate'
+                        })
+                        
+                        self.parent.after(0, speed_label.config, {'text': f'Requesting {download_url}...'})
+                        response = session.get(download_url, stream=True, timeout=30)
+                        response.raise_for_status()
+                        
+                        # Update status immediately after successful connection
+                        self.parent.after(0, status_label.config, {'text': 'Download starting...'})
+                        
+                        # Get total file size
+                        total_size = int(response.headers.get('content-length', 0))
+                        
+                        if total_size > 0:
+                            self.parent.after(0, progress_bar.config, {'maximum': total_size})
+                            self.parent.after(0, status_label.config, {'text': f'Downloading ({total_size/(1024*1024):.1f} MB)...'})
+                            self.parent.after(0, speed_label.config, {'text': 'Initializing...'})
+                        else:
+                            # No content-length header - use indeterminate mode
+                            self.parent.after(0, progress_bar.config, {'mode': 'indeterminate'})
+                            self.parent.after(0, progress_bar, 'start')
+                            self.parent.after(0, status_label.config, {'text': 'Downloading...'})
+                            self.parent.after(0, speed_label.config, {'text': 'Size unknown, downloading...'})
+                        
+                        # Save to temp file with progress tracking
+                        temp_exe = Path(tempfile.gettempdir()) / "GitToolSuite_update.exe"
+                        downloaded = 0
+                        last_ui_update = 0
+                        start_time = time.time()
+                        
+                        # Use larger buffer for file writes
+                        with open(temp_exe, 'wb', buffering=chunk_size) as f:
+                            for chunk in response.iter_content(chunk_size=chunk_size):
+                                if chunk:
+                                    f.write(chunk)
+                                    downloaded += len(chunk)
+                                    
+                                    # Only update UI every update_interval bytes to reduce overhead
+                                    if downloaded - last_ui_update >= update_interval or downloaded >= total_size:
+                                        last_ui_update = downloaded
+                                        
+                                        # Calculate speed and progress
+                                        elapsed = time.time() - start_time
+                                        if elapsed > 0:
+                                            speed = downloaded / elapsed / (1024 * 1024)  # MB/s
+                                            
+                                            if total_size > 0:
+                                                percent = (downloaded / total_size) * 100
+                                                remaining = (total_size - downloaded) / (downloaded / elapsed) if downloaded > 0 else 0
+                                                
+                                                status_text = f"Downloaded {downloaded/(1024*1024):.1f} MB / {total_size/(1024*1024):.1f} MB ({percent:.0f}%)"
+                                                speed_text = f"{speed:.1f} MB/s - ~{remaining:.0f}s remaining"
+                                            else:
+                                                status_text = f"Downloaded {downloaded/(1024*1024):.1f} MB"
+                                                speed_text = f"{speed:.1f} MB/s"
+                                            
+                                            # Update UI
+                                            self.parent.after(0, progress_bar.config, {'value': downloaded})
+                                            self.parent.after(0, status_label.config, {'text': status_text})
+                                            self.parent.after(0, speed_label.config, {'text': speed_text})
+                        
+                        # Close session
+                        if session:
+                            session.close()
+                        
+                        # Download successful
+                        self.parent.after(0, status_label.config, {'text': 'Download complete!'})
+                        self.parent.after(0, speed_label.config, {'text': 'Preparing to update...'})
+                        
+                        # Close progress window
+                        self.parent.after(0, progress_window.destroy)
+                        
+                        # Launch updater
+                        current_exe = Path(sys.executable)
+                        updater_script = Path(__file__).parent.parent / "updater.py"
+                        
+                        # Start updater process
+                        # Note: sys.executable works for both frozen and unfrozen apps
+                        subprocess.Popen([
+                            sys.executable,
+                            str(updater_script),
+                            str(current_exe),
+                            str(temp_exe)
+                        ], creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0)
+                        
+                        # Show message and exit
+                        self.parent.after(0, lambda: messagebox.showinfo(
+                            "Update Ready",
+                            "Update downloaded successfully!\n\nThe application will now close and update."
+                        ))
+                        self.parent.after(100, lambda: self.parent.quit())
+                        
+                        # Success - exit retry loop
+                        break
+                        
+                    except requests.RequestException as e:
+                        # Close session on error
+                        if session:
+                            try:
+                                session.close()
+                            except:
+                                pass
+                        
+                        if attempt < max_retries - 1:
+                            # Retry
+                            error_msg = str(e)[:100]
+                            self.parent.after(0, status_label.config, {'text': f'Download failed, retrying...'})
+                            self.parent.after(0, speed_label.config, {'text': f'Error: {error_msg}'})
+                            time.sleep(2)
+                        else:
+                            # All retries exhausted
+                            self.parent.after(0, progress_window.destroy)
+                            error_msg = f"Failed to download update after {max_retries} attempts:\n{e}"
+                            self.parent.after(0, lambda: messagebox.showerror("Download Error", error_msg))
                     
-                    # Save to temp file
-                    temp_exe = Path(tempfile.gettempdir()) / "GitToolSuite_update.exe"
-                    with open(temp_exe, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                    
-                    # Close progress window
-                    self.parent.after(0, progress_window.destroy)
-                    
-                    # Launch updater
-                    current_exe = Path(sys.executable)
-                    updater_script = Path(__file__).parent.parent / "updater.py"
-                    
-                    # Start updater process
-                    subprocess.Popen([
-                        sys.executable if not getattr(sys, 'frozen', False) else 'python',
-                        str(updater_script),
-                        str(current_exe),
-                        str(temp_exe)
-                    ], creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == 'win32' else 0)
-                    
-                    # Show message and exit
-                    self.parent.after(0, lambda: messagebox.showinfo(
-                        "Update Ready",
-                        "Update downloaded successfully!\n\nThe application will now close and update."
-                    ))
-                    self.parent.after(100, lambda: self.parent.quit())
-                    
-                except Exception as e:
-                    self.parent.after(0, progress_window.destroy)
-                    error_msg = f"Failed to download update:\n{e}"
-                    self.parent.after(0, lambda: messagebox.showerror("Download Error", error_msg))
+                    except Exception as e:
+                        # Close session on error
+                        if session:
+                            try:
+                                session.close()
+                            except:
+                                pass
+                        
+                        # Unexpected error
+                        self.parent.after(0, progress_window.destroy)
+                        error_msg = f"Unexpected error during download:\n{type(e).__name__}: {e}"
+                        self.parent.after(0, lambda: messagebox.showerror("Download Error", error_msg))
+                        break
             
             threading.Thread(target=download, daemon=True).start()
             

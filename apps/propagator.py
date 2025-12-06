@@ -139,7 +139,22 @@ class GitPropagatorApp:
             raise ValueError("Repository path not set.")
         command_parts = ["git"] + shlex.split(command)
         self.log(f"> {' '.join(command_parts)}")
-        process = subprocess.run(command_parts, cwd=self.repo_path.get(), capture_output=True, text=True, encoding='utf-8', errors='ignore')
+        
+        # Hide console window on Windows
+        import sys
+        creation_flags = 0
+        if sys.platform == 'win32':
+            creation_flags = subprocess.CREATE_NO_WINDOW
+        
+        process = subprocess.run(
+            command_parts, 
+            cwd=self.repo_path.get(), 
+            capture_output=True, 
+            text=True, 
+            encoding='utf-8', 
+            errors='ignore',
+            creationflags=creation_flags
+        )
         if process.stdout: 
             self.log(process.stdout.strip())
         if process.stderr: 

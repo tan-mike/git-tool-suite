@@ -21,7 +21,7 @@ from config import Config
 class GitToolsSuiteApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Git Productivity Tools Suite Ver: 3.1 (Limited Edition)")
+        self.root.title(f"Git Productivity Tools Suite Ver: {Config.APP_VERSION} (Limited Edition)")
         self.root.geometry("950x850")
 
         self.joke_result = None

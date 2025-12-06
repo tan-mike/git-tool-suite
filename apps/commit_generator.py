@@ -100,13 +100,20 @@ class CommitGeneratorApp:
         if not self.repo_path.get():
             return ""
         try:
+            # Hide console window on Windows
+            import sys
+            creation_flags = 0
+            if sys.platform == 'win32':
+                creation_flags = subprocess.CREATE_NO_WINDOW
+            
             result = subprocess.run(
                 ["git"] + args, 
                 cwd=self.repo_path.get(), 
                 capture_output=True, 
                 text=True, 
                 encoding='utf-8', 
-                errors='ignore'
+                errors='ignore',
+                creationflags=creation_flags
             )
             if check and result.returncode != 0:
                 raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
