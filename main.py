@@ -27,6 +27,13 @@ class GitToolsSuiteApp:
         self.joke_result = None
         self.gemini_client = GeminiClient() if Config.get_api_key() else None
 
+        # Bottom frame with joke button (Pack this FIRST to ensure visibility)
+        bottom_frame = ttk.Frame(root, padding=(10, 5, 10, 10))
+        bottom_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        self.joke_button = ttk.Button(bottom_frame, text="Tell me a joke", command=self.tell_joke_threaded)
+        self.joke_button.pack(side=tk.RIGHT, padx=5)
+
         # Create tabs
         self.notebook = ttk.Notebook(root)
         
@@ -51,13 +58,6 @@ class GitToolsSuiteApp:
         self.settings_app = SettingsApp(tab_settings)
 
         self.tab_apps = [self.propagator_app, self.cleanup_app, self.pr_app, self.commit_app, self.settings_app]
-
-        # Bottom frame with joke button
-        bottom_frame = ttk.Frame(root, padding=(10, 5, 10, 10))
-        bottom_frame.pack(fill=tk.X, side=tk.BOTTOM)
-
-        self.joke_button = ttk.Button(bottom_frame, text="Tell me a joke", command=self.tell_joke_threaded)
-        self.joke_button.pack(side=tk.RIGHT, padx=5)
 
         if not self.gemini_client:
             self.joke_button.config(state=tk.DISABLED)

@@ -203,13 +203,13 @@ class SettingsApp:
                             self.parent.after(0, speed_label.config, {'text': 'Size unknown, downloading...'})
                         
                         # Save to temp file with progress tracking
-                        temp_exe = Path(tempfile.gettempdir()) / "GitToolSuite_update.exe"
+                        temp_zip = Path(tempfile.gettempdir()) / "GitToolSuite_update.zip"
                         downloaded = 0
                         last_ui_update = 0
                         start_time = time.time()
                         
                         # Use larger buffer for file writes
-                        with open(temp_exe, 'wb', buffering=chunk_size) as f:
+                        with open(temp_zip, 'wb', buffering=chunk_size) as f:
                             for chunk in response.iter_content(chunk_size=chunk_size):
                                 if chunk:
                                     f.write(chunk)
@@ -265,7 +265,7 @@ class SettingsApp:
                         
                         # Start updater process directly
                         subprocess.Popen(
-                            [str(updater_exe), str(current_exe), str(temp_exe)],
+                            [str(updater_exe), str(current_exe), str(temp_zip)],
                             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
                         )
                         
