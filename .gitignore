@@ -15,6 +15,7 @@ venv.bak/
 dist/
 build/
 *.spec
+build_clean.ps1
 
 # Installer logs
 pip-log.txt

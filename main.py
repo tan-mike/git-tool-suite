@@ -64,6 +64,9 @@ class GitToolsSuiteApp:
             ttk.Label(bottom_frame, text="Gemini features disabled (API key not configured)").pack(side=tk.LEFT)
 
         self.check_for_birthday_threaded()
+        
+        # Auto-check for updates once on launch
+        self.check_for_updates_on_launch()
 
     def tell_joke_threaded(self):
         """Entry point for joke generation."""
@@ -170,6 +173,52 @@ class GitToolsSuiteApp:
         message = self.gemini_client.get_birthday_message("Yie Thin")
         if "Error:" not in message:
             self.root.after(0, self.show_centered_popup, "A Special Message for Yie Thin!", message)
+    
+    def check_for_updates_on_launch(self):
+        """Check for updates silently on app launch (once per session)."""
+        import sys
+        # Only check if running as executable
+        if getattr(sys, 'frozen', False):
+            threading.Thread(target=self._update_check_worker, daemon=True).start()
+    
+    def _update_check_worker(self):
+        """Background worker to check for updates."""
+        import requests
+        try:
+            response = requests.get(Config.UPDATE_CHECK_URL, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            
+            latest_version = data.get('version')
+            release_url = data.get('release_url', "https://github.com/tan-mike/git-tool-suite/releases")
+            
+            # Simple version comparison
+            if latest_version and latest_version > Config.APP_VERSION:
+                # Show notification in main thread
+                self.root.after(0, lambda: self._show_update_notification(latest_version, release_url))
+        except Exception:
+            # Silently fail - don't interrupt user experience
+            pass
+    
+    def _show_update_notification(self, latest_version, release_url):
+        """Show a non-intrusive update notification."""
+        from tkinter import messagebox
+        import webbrowser
+        
+        response = messagebox.askyesno(
+            "Update Available",
+            f"A new version ({latest_version}) is available!\n\n"
+            f"Current version: {Config.APP_VERSION}\n\n"
+            "Would you like to update now?\n\n"
+            "(You can also check for updates manually in the Settings tab)",
+            icon='info'
+        )
+        
+        if response:
+            # Switch to settings tab and trigger update check
+            self.notebook.select(4)  # Settings tab is index 4
+            # Let the SettingsApp handle the automatic update flow
+            self.settings_app.check_for_updates()
 
 
 def main():

@@ -8,6 +8,7 @@ import sys
 import shutil
 import subprocess
 import argparse
+import zipfile
 from pathlib import Path
 from config import Config
 
@@ -17,7 +18,8 @@ def generate_version_json():
     version_data = {
         "version": Config.APP_VERSION,
         "release_url": "https://github.com/tan-mike/git-tool-suite/releases",
-        "download_url": f"https://github.com/tan-mike/git-tool-suite/releases/download/v{Config.APP_VERSION}/GitToolSuite.exe"
+        # Updated to point to the ZIP file
+        "download_url": f"https://github.com/tan-mike/git-tool-suite/releases/download/v{Config.APP_VERSION}/GitToolSuite-v{Config.APP_VERSION}.zip"
     }
     
     # Write to version.json
@@ -144,10 +146,10 @@ def build_application():
     spec_file = Path('GitToolSuite.spec')
     if not spec_file.exists():
         print("❌ GitToolSuite.spec not found")
-        return None
+        return None, None
     
-    # Run PyInstaller
-    print("Running PyInstaller...")
+    # Run PyInstaller for main app
+    print("Running PyInstaller for GitToolSuite...")
     try:
         # Hide console window on Windows
         creation_flags = 0
@@ -161,30 +163,109 @@ def build_application():
             text=True,
             creationflags=creation_flags
         )
-        print(result.stdout)
+        # print(result.stdout)
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Build failed: {e}")
         print(e.stderr)
-        return None
+        return None, None
     
-    # Verify output
+    # Verify main output
     exe_path = Path('dist/GitToolSuite.exe')
     if not exe_path.exists():
         print("❌ Build failed - executable not found at dist/GitToolSuite.exe")
-        return None
-    
-    # Check if updater.py should be copied
-    updater_src = Path('updater.py')
-    updater_dst = Path('dist/updater.py')
-    if updater_src.exists():
-        print("Copying updater.py to dist/...")
-        shutil.copy2(updater_src, updater_dst)
+        return None, None
     
     file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
-    print(f"✓ Build successful: {exe_path} ({file_size:.2f} MB)")
+    print(f"✓ Main application built: {exe_path} ({file_size:.2f} MB)")
+
+    # Build updater
+    updater_path = build_updater()
     
-    return exe_path
+    return exe_path, updater_path
+
+
+def build_updater():
+    """Build updater.exe using PyInstaller."""
+    print("\nBuilding updater executable...")
+    
+    spec_file = Path('updater.spec')
+    if not spec_file.exists():
+        print("⚠ updater.spec not found, skipping updater build")
+        return None
+        
+    try:
+        # Hide console window on Windows
+        creation_flags = 0
+        if sys.platform == 'win32':
+            creation_flags = subprocess.CREATE_NO_WINDOW
+            
+        result = subprocess.run(
+            ['pyinstaller', 'updater.spec', '--clean'],
+            check=True,
+            capture_output=True,
+            text=True,
+            creationflags=creation_flags
+        )
+        
+        updater_path = Path('dist/updater.exe')
+        if updater_path.exists():
+            size_mb = updater_path.stat().st_size / (1024 * 1024)
+            print(f"✓ Updater built: {updater_path} ({size_mb:.2f} MB)")
+            return updater_path
+        else:
+            print("❌ Updater build failed - exe not found")
+            return None
+            
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Updater build failed: {e}")
+        return None
+
+
+def create_release_bundle(version, exe_path, updater_path):
+    """Package both executables into a single ZIP."""
+    bundle_name = f"GitToolSuite-v{version}.zip"
+    bundle_path = Path("dist") / bundle_name
+    
+    print(f"\nCreating release bundle: {bundle_name}")
+    
+    with zipfile.ZipFile(bundle_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Add main app
+        zf.write(exe_path, exe_path.name)
+        
+        # Add updater if exists
+        if updater_path and updater_path.exists():
+            zf.write(updater_path, updater_path.name)
+        
+        # Add README
+        readme = f"""Git Tool Suite v{version}
+=====================================
+
+QUICK START
+-----------
+1. Extract all files to a folder
+2. Run GitToolSuite.exe
+3. No installation or Python required!
+
+FILES
+-----
+- GitToolSuite.exe - Main application
+- updater.exe - Auto-updater (used automatically)
+
+REQUIREMENTS
+------------
+- Windows 10 or later
+- No additional software needed
+
+MORE INFO
+---------
+GitHub: https://github.com/tan-mike/git-tool-suite
+"""
+        zf.writestr('README.txt', readme)
+    
+    size_mb = bundle_path.stat().st_size / (1024 * 1024)
+    print(f"✓ Bundle created: {bundle_path} ({size_mb:.2f} MB)")
+    return bundle_path
 
 
 def create_git_tag(version):
@@ -217,7 +298,7 @@ def create_git_tag(version):
         return False
 
 
-def create_github_release(version, exe_path, release_notes=None):
+def create_github_release(version, bundle_path, release_notes=None):
     """Create a GitHub release using gh CLI."""
     print(f"\n=== Creating GitHub Release v{version} ===")
     
@@ -228,34 +309,26 @@ def create_github_release(version, exe_path, release_notes=None):
         release_notes = f"""# Git Tool Suite v{version}
 
 ## Download
-- [GitToolSuite.exe]({Config.UPDATE_CHECK_URL.replace('/raw/', '/download/')}/v{version}/GitToolSuite.exe)
+- [GitToolSuite-v{version}.zip]({Config.UPDATE_CHECK_URL.replace('/raw/', '/download/')}/v{version}/GitToolSuite-v{version}.zip)
 
 ## What's New
 See [CHANGELOG.md](https://github.com/tan-mike/git-tool-suite/blob/main/CHANGELOG.md) for details.
 
 ## Installation
-1. Download `GitToolSuite.exe`
-2. Download `updater.py` (if using auto-update feature)
-3. Run the executable
+1. Download the ZIP file
+2. Extract all contents to a folder
+3. Run `GitToolSuite.exe`
 
-No installation required - just run the .exe file!
+No installation required!
 """
     
     try:
-        # Prepare files to upload
-        files_to_upload = [str(exe_path)]
-        
-        # Add updater.py if it exists
-        updater_path = Path('dist/updater.py')
-        if updater_path.exists():
-            files_to_upload.append(str(updater_path))
-        
         # Create release with gh CLI
-        print(f"Creating release {tag_name} with {len(files_to_upload)} file(s)...")
+        print(f"Creating release {tag_name} with bundle...")
         
         cmd = [
             'gh', 'release', 'create', tag_name,
-            *files_to_upload,
+            str(bundle_path),
             '--title', f'Git Tool Suite v{version}',
             '--notes', release_notes,
             '--repo', 'tan-mike/git-tool-suite'
@@ -282,12 +355,15 @@ def run_build_only():
     if not check_prerequisites():
         return 1
     
-    exe_path = build_application()
+    exe_path, updater_path = build_application()
     if not exe_path:
         return 1
     
+    # Also create the bundle for testing
+    bundle_path = create_release_bundle(Config.APP_VERSION, exe_path, updater_path)
+    
     print("\n✅ Build completed successfully!")
-    print(f"   Executable: {exe_path}")
+    print(f"   Bundle: {bundle_path}")
     return 0
 
 
@@ -317,10 +393,11 @@ def run_full_release():
     print(f"{'='*60}")
     print("\nThis will:")
     print(f"  1. Generate version.json")
-    print(f"  2. Build GitToolSuite.exe with PyInstaller")
-    print(f"  3. Create git tag v{version}")
-    print(f"  4. Push tag to GitHub")
-    print(f"  5. Create GitHub release with build artifact")
+    print(f"  2. Build GitToolSuite.exe AND updater.exe")
+    print(f"  3. Create ZIP bundle")
+    print(f"  4. Create git tag v{version}")
+    print(f"  5. Push tag to GitHub")
+    print(f"  6. Create GitHub release with ZIP bundle")
     
     response = input(f"\nProceed with release v{version}? (yes/N): ")
     if response.lower() != 'yes':
@@ -330,24 +407,22 @@ def run_full_release():
     # Step 4: Generate version.json
     version_data = generate_version_json()
     
-    # Step 5: Build
-    exe_path = build_application()
+    # Step 5: Build everything
+    exe_path, updater_path = build_application()
     if not exe_path:
         return 1
     
-    # Step 6: Create tag
+    # Step 6: Create Bundle
+    bundle_path = create_release_bundle(version, exe_path, updater_path)
+    
+    # Step 7: Create tag
     if not create_git_tag(version):
         print("\n⚠ Warning: Tag creation failed, but build succeeded")
-        print(f"  You can manually create the tag later with:")
-        print(f"    git tag -a v{version} -m 'Release v{version}'")
-        print(f"    git push origin v{version}")
         return 1
     
-    # Step 7: Create GitHub release
-    if not create_github_release(version, exe_path):
-        print("\n⚠ Warning: GitHub release creation failed, but build and tag succeeded")
-        print(f"  You can manually create the release at:")
-        print(f"    https://github.com/tan-mike/git-tool-suite/releases/new")
+    # Step 8: Create GitHub release
+    if not create_github_release(version, bundle_path):
+        print("\n⚠ Warning: GitHub release creation failed")
         return 1
     
     # Success!
@@ -355,7 +430,7 @@ def run_full_release():
     print("  ✅ RELEASE COMPLETE!")
     print("="*60)
     print(f"\n  Version: {version}")
-    print(f"  Executable: {exe_path}")
+    print(f"  Bundle: {bundle_path}")
     print(f"  Release: https://github.com/tan-mike/git-tool-suite/releases/tag/v{version}")
     print(f"\n  Next steps:")
     print(f"    1. Update CHANGELOG.md with release notes")
