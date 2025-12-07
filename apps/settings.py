@@ -8,6 +8,8 @@ from tkinter import ttk, messagebox
 import requests
 import threading
 import webbrowser
+import shutil
+import tempfile
 
 from config import Config
 
@@ -250,16 +252,118 @@ class SettingsApp:
                         
                         # Launch updater
                         current_exe = Path(sys.executable)
-                        updater_script = Path(__file__).parent.parent / "updater.py"
+                        
+                        # Embed updater script - extract to temp at runtime
+                        # This allows single-file distribution
+                        updater_code = '''"""
+Auto-updater script for GitToolSuite.
+This script downloads the new version, replaces the old executable, and restarts the app.
+"""
+
+import sys
+import time
+import os
+import subprocess
+import shutil
+from pathlib import Path
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: updater.py <current_exe_path> <downloaded_exe_path>")
+        sys.exit(1)
+    
+    current_exe = Path(sys.argv[1])
+    downloaded_exe = Path(sys.argv[2])
+    
+    print(f"Waiting for main application to close...")
+    time.sleep(2)  # Give main app time to close
+    
+    # Ensure the current exe is not running
+    max_retries = 10
+    for i in range(max_retries):
+        try:
+            # Try to rename (will fail if file is locked)
+            temp_backup = current_exe.with_suffix('.exe.old')
+            if temp_backup.exists():
+                temp_backup.unlink()
+            current_exe.rename(temp_backup)
+            break
+        except PermissionError:
+            if i < max_retries - 1:
+                print(f"Waiting for executable to close... ({i+1}/{max_retries})")
+                time.sleep(1)
+            else:
+                print("ERROR: Could not replace executable. Please close the application manually.")
+                input("Press Enter to exit...")
+                sys.exit(1)
+    
+    try:
+        # Copy new version to current location
+        shutil.copy2(downloaded_exe, current_exe)
+        print(f"Successfully updated to new version!")
+        
+        # Clean up
+        downloaded_exe.unlink()
+        temp_backup.unlink()
+        
+        # Restart the application
+        print("Restarting application...")
+        time.sleep(1)
+        
+        # Hide console window on Windows
+        creation_flags = 0
+        if sys.platform == 'win32':
+            creation_flags = subprocess.CREATE_NO_WINDOW
+        
+        subprocess.Popen(
+            [str(current_exe)], 
+            cwd=current_exe.parent,
+            creationflags=creation_flags
+        )
+        
+    except Exception as e:
+        print(f"ERROR during update: {e}")
+        # Restore backup if something went wrong
+        if temp_backup.exists():
+            temp_backup.rename(current_exe)
+        input("Press Enter to exit...")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+'''
+                        
+                        # Write updater to temp file
+                        updater_script = Path(tempfile.gettempdir()) / "GitToolSuite_updater.py"
+                        with open(updater_script, 'w') as f:
+                            f.write(updater_code)
+                        
+                        # Find Python interpreter
+                        python_exe = shutil.which('python') or shutil.which('python3')
+                        if not python_exe:
+                            # Try common Python installation paths
+                            for py_path in [
+                                Path(r'C:\Python313\python.exe'),
+                                Path(r'C:\Python312\python.exe'),
+                                Path(r'C:\Python311\python.exe'),
+                                Path(r'C:\Python310\python.exe'),
+                            ]:
+                                if py_path.exists():
+                                    python_exe = str(py_path)
+                                    break
+                        
+                        if not python_exe:
+                            error_msg = "Could not find Python interpreter to complete update.\n\n"
+                            error_msg += "Python interpreter not found in PATH\n"
+                            error_msg += "\nPlease manually replace the executable with the downloaded file."
+                            self.parent.after(0, lambda: messagebox.showerror("Update Error", error_msg))
+                            return
                         
                         # Start updater process
-                        # Note: sys.executable works for both frozen and unfrozen apps
-                        subprocess.Popen([
-                            sys.executable,
-                            str(updater_script),
-                            str(current_exe),
-                            str(temp_exe)
-                        ], creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0)
+                        subprocess.Popen(
+                            [python_exe, str(updater_script), str(current_exe), str(temp_exe)],
+                            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+                        )
                         
                         # Show message and exit
                         self.parent.after(0, lambda: messagebox.showinfo(
