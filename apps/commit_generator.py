@@ -36,6 +36,7 @@ class CommitGeneratorApp:
         ttk.Label(repo_frame, textvariable=self.current_branch, font=("", 9, "bold")).pack(side=tk.LEFT, padx=5)
         
         ttk.Button(repo_frame, text="Refresh", command=self.refresh_status).pack(side=tk.RIGHT)
+        ttk.Button(repo_frame, text="New Branch...", command=self.create_branch_dialog).pack(side=tk.RIGHT, padx=5)
 
         # 2. Staging Area (PanedWindow)
         paned = ttk.PanedWindow(self.main_frame, orient=tk.HORIZONTAL)
@@ -121,6 +122,108 @@ class CommitGeneratorApp:
         except Exception as e:
             self.log(f"Git Error: {e}")
             return ""
+
+    def create_branch_dialog(self):
+        if not self.repo_path.get():
+            return messagebox.showwarning("Warning", "Please select a repository first.")
+            
+        dialog = tk.Toplevel(self.parent)
+        dialog.title("Create New Branch")
+        dialog.geometry("400x320")
+        dialog.transient(self.parent)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="New Branch Name:").pack(pady=(15, 5))
+        name_var = tk.StringVar()
+        ttk.Entry(dialog, textvariable=name_var, width=40).pack()
+        
+        # From Origin Option
+        from_origin_var = tk.BooleanVar()
+        origin_frame = ttk.LabelFrame(dialog, text="Source (Optional)", padding=10)
+        origin_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        # Defined here for lambda closure
+        combo = ttk.Combobox(origin_frame, state=tk.DISABLED, width=35)
+        status_lbl = ttk.Label(origin_frame, text="", font=("", 8), foreground="gray")
+        
+        chk = ttk.Checkbutton(origin_frame, text="Checkout from Origin", variable=from_origin_var, 
+                              command=lambda: self._toggle_origin_combo(combo, from_origin_var, status_lbl))
+        chk.pack(anchor=tk.W)
+        
+        lbl = ttk.Label(origin_frame, text="Select Remote Branch:")
+        lbl.pack(anchor=tk.W, pady=(5, 0))
+        
+        combo.pack(pady=5)
+        status_lbl.pack()
+        
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.pack(pady=10)
+        
+        ttk.Button(btn_frame, text="Create", 
+                   command=lambda: self._create_branch_action(dialog, name_var.get(), from_origin_var.get(), combo.get())).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def _toggle_origin_combo(self, combo, var, status_lbl):
+        if var.get():
+            combo.config(state="readonly")
+            status_lbl.config(text="Fetching origin branches...")
+            self.parent.update_idletasks()
+            threading.Thread(target=self._fetch_remote_branches_worker, args=(combo, status_lbl), daemon=True).start()
+        else:
+            combo.config(state=tk.DISABLED)
+            status_lbl.config(text="")
+            
+    def _fetch_remote_branches_worker(self, combo, status_lbl):
+        try:
+            self._run_git(["fetch", "origin"])
+            out = self._run_git(["branch", "-r"])
+            # Parse lines like "  origin/HEAD -> origin/main", "  origin/main"
+            branches = []
+            for line in out.splitlines():
+                line = line.strip()
+                if "->" in line: continue # Skip pointers
+                if line.startswith("origin/"):
+                    branches.append(line.replace("origin/", "", 1))
+            
+            def update_ui():
+                combo['values'] = branches
+                status_lbl.config(text=f"Found {len(branches)} remote branches.")
+                if branches:
+                    combo.current(0)
+            self.parent.after(0, update_ui)
+        except Exception as e:
+            def show_err():
+                status_lbl.config(text="Error fetching branches (Check network/remote)")
+            self.parent.after(0, show_err)
+
+    def _create_branch_action(self, dialog, name, from_origin, remote_branch):
+        if not name:
+            return messagebox.showerror("Error", "Branch name required.")
+        if " " in name:
+             return messagebox.showwarning("Warning", "Branch names cannot contain spaces.")
+        
+        args = ["checkout", "-b", name]
+        if from_origin:
+            if not remote_branch:
+                return messagebox.showerror("Error", "Please select a remote branch.")
+            args.append(f"origin/{remote_branch}")
+            
+        try:
+            out = self._run_git(args)
+            if "Switched to a new branch" in out or "Switched to branch" in out or not out: 
+                # Git output varies, sometimes stderr has the message.
+                # If _run_git didn't raise, it's mostly success.
+                pass
+            
+            messagebox.showinfo("Success", f"Branch '{name}' created!\n\n{out}")
+            dialog.destroy()
+            self.refresh_status()
+        except Exception as e:
+            # Subprocess.CalledProcessError
+            if hasattr(e, 'stderr') and e.stderr:
+                 messagebox.showerror("Error", f"Failed to create branch:\n{e.stderr}")
+            else:
+                 messagebox.showerror("Error", f"Failed to create branch:\n{e}")
 
     def browse_repository(self):
         path = filedialog.askdirectory()

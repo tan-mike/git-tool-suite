@@ -10,6 +10,7 @@ Usage:
 """
 
 import base64
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -44,8 +45,8 @@ def obfuscate_key(api_key):
     return part1, part2, part3
 
 
-def inject_into_config(part1, part2, part3):
-    """Updates config.py with obfuscated key fragments."""
+def inject_into_config(part1, part2, part3, product_key_hash=None):
+    """Updates config.py with obfuscated key fragments and product key hash."""
     config_path = os.path.join(os.path.dirname(__file__), '..', 'config.py')
     
     # Read current config
@@ -61,6 +62,8 @@ def inject_into_config(part1, part2, part3):
             new_lines.append(f'    _KEY_PART2 = "{part2}"\n')
         elif '_KEY_PART3 = "PLACEHOLDER_PART3"' in line:
             new_lines.append(f'    _KEY_PART3 = "{part3}"\n')
+        elif product_key_hash and '_PRODUCT_KEY_HASH = "PLACEHOLDER_PRODUCT_KEY_HASH"' in line:
+            new_lines.append(f'    _PRODUCT_KEY_HASH = "{product_key_hash}"\n')
         else:
             new_lines.append(line)
     
@@ -71,31 +74,44 @@ def inject_into_config(part1, part2, part3):
 
 def main():
     # Try to read from .env file first, then environment variable
-    # Check both GEMINI_API_KEY (production) and GEMINI_API_KEY (dev)
-    api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GEMINI_API_KEY')
+    api_key = os.getenv('GEMINI_API_KEY')
+    product_key = os.getenv('PRODUCT_KEY')
     
     if not api_key:
         print("ERROR: GEMINI_API_KEY not found")
         print("\nPlease provide your API key using one of these methods:")
         print("  1. Add to .env file: GEMINI_API_KEY=your_key_here")
         print("  2. Set environment variable: export GEMINI_API_KEY='your_key_here'")
-        print("\nThen run:")
-        print("  python build_helpers/obfuscate_key.py")
-        print("\nAfter obfuscation, build the executable:")
-        print("  pyinstaller --onefile --windowed --name GitToolSuite main.py")
         sys.exit(1)
     
-    print("✓ API key found")
+    print("✅ API key found")
     print("Obfuscating API key...")
     parts = obfuscate_key(api_key)
     
-    print("Injecting into config.py...")
-    inject_into_config(*parts)
+    # Hash product key if provided
+    product_key_hash = None
+    if product_key:
+        print("✅ Product key found")
+        print("Hashing product key...")
+        product_key_hash = hashlib.sha256(product_key.strip().encode('utf-8')).hexdigest()
+        print(f"   Hash: {product_key_hash[:16]}...")
+    else:
+        print("⚠️  No PRODUCT_KEY in .env - building Standard Edition")
     
-    print("✓ API key successfully obfuscated and injected!")
+    print("Injecting into config.py...")
+    inject_into_config(*parts, product_key_hash=product_key_hash)
+    
+    print("\n✅ Configuration successfully updated!")
+    if product_key_hash:
+        print("   ✅ Limited Edition build (with product key protection)")
+    else:
+        print("   ⚠️  Standard Edition build (users provide own API key)")
+    
     print("\nNext steps:")
-    print("  1. Build executable: pyinstaller --onefile --windowed --name GitToolSuite main.py")
-    print("  2. Distribute the executable - users won't need to configure API key!")
+    print("  1. Build executable: python build_clean.ps1")
+    print("  2. Distribute the executable")
+    if product_key_hash:
+        print(f"  3. Share product key '{product_key}' with authorized user")
 
 
 if __name__ == "__main__":

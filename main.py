@@ -21,7 +21,11 @@ from config import Config
 class GitToolsSuiteApp:
     def __init__(self, root):
         self.root = root
-        self.root.title(f"Git Productivity Tools Suite Ver: {Config.APP_VERSION} (Limited Edition)")
+        if Config.is_limited_edition():
+            title = f"Git Productivity Tools Suite Ver: {Config.APP_VERSION} (Limited Edition)"
+        else:
+            title = f"Git Productivity Tools Suite Ver: {Config.APP_VERSION}"
+        self.root.title(title)
         self.root.geometry("950x850")
 
         self.joke_result = None
@@ -165,7 +169,8 @@ class GitToolsSuiteApp:
 
     def check_for_birthday_threaded(self):
         today = datetime.date.today()
-        if self.gemini_client and today.month == 12 and today.day == 12:
+        # Only show birthday greeting if Limited Edition is active
+        if Config.is_limited_edition() and self.gemini_client and today.month == 12 and today.day == 12:
             threading.Thread(target=self._birthday_worker, daemon=True).start()
 
     def _birthday_worker(self):

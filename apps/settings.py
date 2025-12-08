@@ -18,6 +18,7 @@ class SettingsApp:
         self.parent = parent
         self.prefs = Config.load_preferences()
         self.api_key_var = tk.StringVar(value=self.prefs.get('api_key', ''))
+        self.product_key_var = tk.StringVar(value=self.prefs.get('product_key', ''))
         
         self.main_frame = ttk.Frame(self.parent, padding="20")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -28,8 +29,31 @@ class SettingsApp:
         # Title
         ttk.Label(self.main_frame, text="Settings", font=("", 16, "bold")).pack(anchor=tk.W, pady=(0, 20))
         
-        # 1. API Key Setup (Conditional)
-        if not Config.IS_LIMITED_BUILD:
+        # 0. Product Activation (Limited Edition)
+        is_limited = Config.is_limited_edition()
+        
+        prod_frame = ttk.LabelFrame(self.main_frame, text="Product Activation", padding="15")
+        prod_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        if is_limited:
+            # Active State
+            success_frame = ttk.Frame(prod_frame)
+            success_frame.pack(fill=tk.X)
+            ttk.Label(success_frame, text="✅ Limited Edition Active", font=("", 12, "bold"), foreground="green").pack(side=tk.LEFT)
+            # ttk.Button(success_frame, text="Deactivate", command=self.deactivate_product).pack(side=tk.RIGHT)
+        else:
+            # Inactive State
+            ttk.Label(prod_frame, text="Enter Product Key for Limited Edition features:").pack(anchor=tk.W)
+            
+            p_entry_frame = ttk.Frame(prod_frame)
+            p_entry_frame.pack(fill=tk.X, pady=5)
+            
+            self.pk_entry = ttk.Entry(p_entry_frame, textvariable=self.product_key_var, show="*", width=40)
+            self.pk_entry.pack(side=tk.LEFT, padx=(0, 10))
+            ttk.Button(p_entry_frame, text="Activate", command=self.activate_product).pack(side=tk.LEFT)
+            
+        # 1. API Key Setup (Shown if NOT Limited Edition)
+        if not is_limited:
             api_frame = ttk.LabelFrame(self.main_frame, text="Gemini API Configuration", padding="15")
             api_frame.pack(fill=tk.X, pady=(0, 20))
             
@@ -44,7 +68,7 @@ class SettingsApp:
             ttk.Button(entry_frame, text="Save", command=self.save_api_key).pack(side=tk.LEFT, padx=5)
             ttk.Button(entry_frame, text="Clear", command=self.clear_api_key).pack(side=tk.LEFT)
             
-            ttk.Label(api_frame, text="Note: Provide your own Gemini API key, to use AI features.", font=("", 8, "italic")).pack(anchor=tk.W, pady=(5, 0))
+            ttk.Label(api_frame, text="Note: Provide your own Gemini API key, or use a Product Key.", font=("", 8, "italic")).pack(anchor=tk.W, pady=(5, 0))
         
         # 2. Update Checker
         update_frame = ttk.LabelFrame(self.main_frame, text="Software Update", padding="15")
@@ -80,6 +104,52 @@ class SettingsApp:
                 del self.prefs['api_key']
                 Config.save_preferences(self.prefs)
             messagebox.showinfo("Success", "API Key cleared.")
+    
+    def activate_product(self):
+        key = self.product_key_var.get().strip()
+        if not key:
+            return messagebox.showwarning("Warning", "Please enter a Product Key.")
+            
+        # Verify key (using Config logic)
+        # Note: We temporarily save to check validity via Config.is_limited_edition
+        # In a cleaner architecture, we'd have a Config.validate_key(key) method,
+        # but for now we'll mimic the check.
+        
+        # Hardcoded check here to match Config (or better, expose it)
+        # Assuming Config._VALID_PRODUCT_KEY is private, we can't access it easily without
+        # modifying Config again to expose a validator.
+        # However, we can just save it and check Config.is_limited_edition().
+        
+        old_key = self.prefs.get('product_key')
+        self.prefs['product_key'] = key
+        Config.save_preferences(self.prefs)
+        
+        if Config.is_limited_edition():
+            messagebox.showinfo("Success", "Limited Edition Activated! 🎉")
+            # Refresh UI
+            self.refresh_ui()
+        else:
+            messagebox.showerror("Error", "Invalid Product Key.")
+            # Revert
+            if old_key:
+                self.prefs['product_key'] = old_key
+            else:
+                del self.prefs['product_key']
+            Config.save_preferences(self.prefs)
+            
+    def deactivate_product(self):
+        if messagebox.askyesno("Confirm", "Deactivate Limited Edition?"):
+            self.prefs['product_key'] = ""
+            Config.save_preferences(self.prefs)
+            self.product_key_var.set("")
+            self.refresh_ui()
+            messagebox.showinfo("Success", "Product deactivated.")
+
+    def refresh_ui(self):
+        # Clear current frames and rebuild
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
+        self.build_ui()
 
     def check_for_updates(self):
         self.check_btn.config(state=tk.DISABLED, text="Checking...")
