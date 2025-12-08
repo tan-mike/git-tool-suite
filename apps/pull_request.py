@@ -121,12 +121,14 @@ class PullRequestApp:
         self.preview_notebook.add(self.files_tree, text="Files Changed")
         
         # Commits Tab
-        self.commits_tree = ttk.Treeview(self.preview_notebook, columns=("hash", "author", "subject"), show="headings")
+        self.commits_tree = ttk.Treeview(self.preview_notebook, columns=("hash", "author", "date", "subject"), show="headings")
         self.commits_tree.heading("hash", text="Hash")
         self.commits_tree.heading("author", text="Author")
+        self.commits_tree.heading("date", text="Date")
         self.commits_tree.heading("subject", text="Subject")
         self.commits_tree.column("hash", width=80)
         self.commits_tree.column("author", width=150)
+        self.commits_tree.column("date", width=150)
         self.commits_tree.column("subject", width=400)
         self.preview_notebook.add(self.commits_tree, text="Commits")
 
@@ -292,20 +294,21 @@ class PullRequestApp:
                         self.files_tree.insert("", "end", values=(fpath, stats))
 
             # 2. Get Commits (git log)
-            log_cmd = ["git", "log", "--pretty=format:%h|%an|%s", f"origin/{target}...{source}"]
+            log_cmd = ["git", "log", "--pretty=format:%h|%an|%ai|%s", f"origin/{target}..{source}"]
             log_output = self._run_command(log_cmd, check=False)
             
             if not log_output.strip():
-                log_cmd = ["git", "log", "--pretty=format:%h|%an|%s", f"{target}...{source}"]
+                log_cmd = ["git", "log", "--pretty=format:%h|%an|%ai|%s", f"{target}..{source}"]
                 log_output = self._run_command(log_cmd, check=False)
 
             for line in log_output.splitlines():
                 parts = line.split("|")
-                if len(parts) >= 3:
+                if len(parts) >= 4:
                     h = parts[0]
                     auth = parts[1]
-                    subj = "|".join(parts[2:])
-                    self.commits_tree.insert("", "end", values=(h, auth, subj))
+                    date = parts[2]
+                    subj = "|".join(parts[3:])
+                    self.commits_tree.insert("", "end", values=(h, auth, date, subj))
                     
         except Exception as e:
             self.log(f"Error updating preview: {e}")

@@ -22,10 +22,24 @@ def verify_pr_preview():
         f.write("# Main\n")
     run_git(["add", "README.md"], base_path)
     run_git(["commit", "-m", "Initial commit"], base_path)
-    
-    # Create feature branch
+
+    # Determine target branch name
+    target = "master"
+    branches = run_git(["branch"], base_path)
+    if "main" in branches:
+        target = "main"
+
+    # Create feature branch and switch to it
     run_git(["checkout", "-b", "feature/test"], base_path)
     
+    # Go back to master and add another commit to ensure `..` logic is tested
+    run_git(["checkout", target], base_path)
+    with open(os.path.join(base_path, "OTHER.md"), "w") as f:
+        f.write("# Other\n")
+    run_git(["add", "OTHER.md"], base_path)
+    run_git(["commit", "-m", "Add other file to master"], base_path)
+    run_git(["checkout", "feature/test"], base_path) # Go back to feature branch
+
     # Modify README
     with open(os.path.join(base_path, "README.md"), "a") as f:
         f.write("Feature change\n")
@@ -40,18 +54,14 @@ def verify_pr_preview():
     
     # 2. Simulate Logic in App
     source = "feature/test"
-    target = "master" # git init creates master by default usually, or main. Let's check.
-    branches = run_git(["branch"], base_path)
-    if "main" in branches:
-        target = "main"
         
     print(f"Testing diff between {target} and {source}...")
     
     # Test 1: Files Changed (git diff --stat)
-    # Note: In app we try origin/target...source first, then target...source.
+    # Note: In app we try origin/target..source first, then target..source.
     # Here we only have local, so we test the fallback logic which is crucial.
     
-    diff_cmd = ["diff", "--stat", f"{target}...{source}"]
+    diff_cmd = ["diff", "--stat", f"{target}..{source}"]
     stat_output = run_git(diff_cmd, base_path)
     print("\n--- Diff Stat Output ---")
     print(stat_output)
@@ -63,7 +73,7 @@ def verify_pr_preview():
         sys.exit(1)
 
     # Test 2: Commits (git log)
-    log_cmd = ["log", "--pretty=format:%h|%an|%s", f"{target}...{source}"]
+    log_cmd = ["log", "--pretty=format:%h|%an|%ai|%s", f"{target}..{source}"]
     log_output = run_git(log_cmd, base_path)
     print("\n--- Log Output ---")
     print(log_output)
@@ -71,6 +81,15 @@ def verify_pr_preview():
     commits = log_output.splitlines()
     if len(commits) == 2:
         print(f"SUCCESS: Found {len(commits)} commits (expected 2).")
+
+        # Verify format of each commit line
+        for line in commits:
+            parts = line.split('|')
+            if len(parts) != 4 or not parts[2].strip():
+                print(f"FAILURE: Commit line has incorrect format or missing date: {line}")
+                sys.exit(1)
+        print("SUCCESS: All commits have the correct format including a date.")
+
         if "Update README" in commits[1] and "Add new file" in commits[0]:
              print("SUCCESS: Commit subjects match.")
         else:
