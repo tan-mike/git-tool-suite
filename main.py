@@ -221,10 +221,38 @@ class GitToolsSuiteApp:
             self.settings_app.check_for_updates()
 
 
+def cleanup_old_versions():
+    """Delete old versions of the executable."""
+    import sys
+    from pathlib import Path
+    
+    try:
+        # Get directory of current executable or script
+        if getattr(sys, 'frozen', False):
+            base_path = Path(sys.executable).parent
+        else:
+            base_path = Path(__file__).parent
+            
+        # Find all files ending in .exe.old
+        for old_file in base_path.glob("*.exe.old"):
+            try:
+                old_file.unlink()
+                print(f"Cleaned up old version: {old_file.name}")
+            except Exception as e:
+                # Retries will happen next launch
+                print(f"Could not delete {old_file.name}: {e}")
+                
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
+
 def main():
     """Main entry point."""
     import tkinter as tk
     from tkinter import messagebox
+    
+    # Run cleanup first thing
+    cleanup_old_versions()
     
     # Check for GitPython dependency
     try:
