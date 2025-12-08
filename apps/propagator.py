@@ -337,6 +337,8 @@ class GitPropagatorApp:
             else:
                 # Propagate each commit individually
                 commits = [self.commit_listbox.get(i).split('|')[0] for i in selected_indices]
+                # REVERSE the list to process oldest-to-newest, which is the correct chronological order for cherry-picking
+                commits.reverse()
                 if not messagebox.askyesno("Confirm Action", f"Cherry-pick {len(commits)} commits individually onto:\n\n- {', '.join(target_branches)}\n\nProceed?"):
                     return self.log("Operation cancelled.")
                 
