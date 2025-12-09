@@ -57,6 +57,7 @@ def verify_settings_logic():
     from utils.versioning import is_newer_version
 
     versions_to_test = [
+        # Basic comparisons
         ("3.2.10", "3.2.8", True),
         ("3.2.8", "3.2.10", False),
         ("3.1.0", "3.0.1", True),
@@ -64,8 +65,28 @@ def verify_settings_logic():
         ("4.0.0", "3.9.9", True),
         ("3.9.9", "4.0.0", False),
         ("3.2.8", "3.2.8", False),
-        ("1.0.0", "1.0", False), # Edge case - same value
-        ("1.0", "1.0.0", False) # Edge case - same value
+
+        # Whitespace handling
+        (" 1.2.3 ", "1.2.3", False),
+        ("1.2.4", " 1.2.3 ", True),
+
+        # Leading 'v' handling
+        ("v1.2.3", "1.2.3", False),
+        ("v1.2.4", "1.2.3", True),
+        ("1.2.4", "v1.2.3", True),
+
+        # Pre-release / build metadata handling
+        ("1.2.3-alpha", "1.2.3", False),
+        ("1.2.3", "1.2.3-alpha", False),
+        ("1.2.4", "1.2.3-alpha", True),
+        ("1.2.3+build.1", "1.2.3", False),
+        ("1.2.3", "1.2.3+build.1", False),
+        ("1.2.4-rc1", "1.2.4-rc0", False), # Note: pre-release ignored
+
+        # Padding / component length
+        ("1.0.0", "1.0", False),
+        ("1.0", "1.0.0", False),
+        ("2.0", "1.9.9", True),
     ]
 
     for v1, v2, expected in versions_to_test:
@@ -75,7 +96,7 @@ def verify_settings_logic():
         else:
             print(f"FAILURE: is_newer_version('{v1}', '{v2}') returned {result}, but expected {expected}.")
             sys.exit(1)
-    
+
     # Test invalid inputs
     invalid_inputs = [("3.2.a", "3.2.8"), (None, "3.2.8"), ("3.2.8", "")]
     for v1, v2 in invalid_inputs:
