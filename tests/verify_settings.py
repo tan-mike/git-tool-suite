@@ -52,21 +52,39 @@ def verify_settings_logic():
         sys.exit(1)
         
     print("\nVerifying Version Check Logic...")
-    current = "3.1"
-    newer = "3.2"
-    older = "3.0"
+    # Add parent dir to path to import utils
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from utils.versioning import is_newer_version
+
+    versions_to_test = [
+        ("3.2.10", "3.2.8", True),
+        ("3.2.8", "3.2.10", False),
+        ("3.1.0", "3.0.1", True),
+        ("3.0.1", "3.1.0", False),
+        ("4.0.0", "3.9.9", True),
+        ("3.9.9", "4.0.0", False),
+        ("3.2.8", "3.2.8", False),
+        ("1.0.0", "1.0", False), # Edge case - same value
+        ("1.0", "1.0.0", False) # Edge case - same value
+    ]
+
+    for v1, v2, expected in versions_to_test:
+        result = is_newer_version(v1, v2)
+        if result == expected:
+            print(f"SUCCESS: is_newer_version('{v1}', '{v2}') returned {result} as expected.")
+        else:
+            print(f"FAILURE: is_newer_version('{v1}', '{v2}') returned {result}, but expected {expected}.")
+            sys.exit(1)
     
-    if newer > current:
-        print("SUCCESS: Newer version detected.")
-    else:
-        print("FAILURE: Newer version not detected.")
-        sys.exit(1)
-        
-    if not (older > current):
-        print("SUCCESS: Older version correctly identified.")
-    else:
-        print("FAILURE: Older version incorrectly flagged as new.")
-        sys.exit(1)
+    # Test invalid inputs
+    invalid_inputs = [("3.2.a", "3.2.8"), (None, "3.2.8"), ("3.2.8", "")]
+    for v1, v2 in invalid_inputs:
+        result = is_newer_version(v1, v2)
+        if result is False:
+            print(f"SUCCESS: is_newer_version('{v1}', '{v2}') correctly returned False for invalid input.")
+        else:
+            print(f"FAILURE: is_newer_version('{v1}', '{v2}') returned {result}, but expected False for invalid input.")
+            sys.exit(1)
 
 if __name__ == "__main__":
     try:

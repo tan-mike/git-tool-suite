@@ -16,6 +16,7 @@ from apps.commit_generator import CommitGeneratorApp
 from apps.settings import SettingsApp
 from ai.gemini_client import GeminiClient
 from config import Config
+from utils.versioning import is_newer_version
 
 
 class GitToolsSuiteApp:
@@ -198,7 +199,7 @@ class GitToolsSuiteApp:
             release_url = data.get('release_url', "https://github.com/tan-mike/git-tool-suite/releases")
             
             # Simple version comparison
-            if latest_version and latest_version > Config.APP_VERSION:
+            if is_newer_version(latest_version, Config.APP_VERSION):
                 # Show notification in main thread
                 self.root.after(0, lambda: self._show_update_notification(latest_version, release_url))
         except Exception:

@@ -12,6 +12,7 @@ import shutil
 import tempfile
 
 from config import Config
+from utils.versioning import is_newer_version
 
 class SettingsApp:
     def __init__(self, parent):
@@ -177,7 +178,7 @@ class SettingsApp:
         current = Config.APP_VERSION
         # Simple string comparison (works for simple versions like "3.1" vs "3.2")
         # For more complex semver, we might need packaging.version
-        if latest_version > current:
+        if is_newer_version(latest_version, current):
             # Check if running as executable
             import sys
             is_executable = getattr(sys, 'frozen', False)
