@@ -40,7 +40,7 @@ class GeminiClient:
                 if 'parts' in content and content['parts']:
                     return content['parts'][0].get('text', "Error: Could not parse response.")
             
-            print("Warning: Gemini response contained no candidates. Full response:", data)
+            print("Warning: Gemini response contained no candidates.")
             return "Error: The AI returned an empty response."
         except requests.exceptions.RequestException as e:
             print(f"ERROR: Gemini API call failed: {e}")
