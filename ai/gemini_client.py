@@ -5,6 +5,7 @@ Gemini AI Client for Joke and Birthday features.
 import requests
 import random
 import datetime
+import re
 
 from config import Config
 
@@ -175,3 +176,35 @@ Diff:
 Output ONLY the commit message.
 """
         return self.call_gemini(prompt).strip()
+
+    def generate_branch_name(self, diff_text, prefix=""):
+        """
+        Generates a concise, descriptive branch name from a git diff.
+        """
+        if not diff_text or not diff_text.strip():
+            return "no-changes"
+
+        max_len = 4000
+        if len(diff_text) > max_len:
+            diff_text = diff_text[:max_len] + "\n...(truncated)"
+
+        prompt = f"""Generate a concise, descriptive git branch name for the following diff.
+- Use lowercase words separated by hyphens.
+- Start with a verb if possible.
+- Max 5-6 words.
+- If a prefix is provided, prepend it to the name.
+
+Prefix: '{prefix}'
+
+Diff:
+{diff_text}
+
+Output ONLY the branch name.
+"""
+
+        branch_name = self.call_gemini(prompt).strip().replace(" ", "-").lower()
+
+        # Clean up any non-alphanumeric chars except hyphens
+        branch_name = re.sub(r'[^a-z0-9-/]', '', branch_name)
+
+        return branch_name
