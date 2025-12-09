@@ -31,7 +31,7 @@ class Config:
 
     # Product Key Hash (will be replaced by build script)
     # This is the SHA-256 hash of the actual product key from .env
-    _PRODUCT_KEY_HASH = ""
+    _PRODUCT_KEY_HASH = "PLACEHOLDER_PRODUCT_KEY_HASH"
 
     @staticmethod
     def get_api_key():
