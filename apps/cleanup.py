@@ -114,6 +114,8 @@ class BranchCleanerApp:
         self.log_message(f"Querying branches with prefix='{prefix}', older than {days_limit} days.")
         try:
             self.repo = Repo(repo_path)
+            self.log_message("Pruning remote branches...")
+            self.repo.git.remote("prune", "origin")
             self.log_message("Fetching from remote to update branch list...")
             self.repo.git.fetch("--all", "--prune")
             self.log_message("Fetch complete.")

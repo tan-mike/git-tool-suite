@@ -129,15 +129,32 @@ class CommitGeneratorApp:
             
         dialog = tk.Toplevel(self.parent)
         dialog.title("Create New Branch")
-        dialog.geometry("400x320")
+        dialog.geometry("450x450")
         dialog.transient(self.parent)
         dialog.grab_set()
         
-        ttk.Label(dialog, text="New Branch Name:").pack(pady=(15, 5))
+        # --- Branch Name Section ---
+        name_frame = ttk.Frame(dialog)
+        name_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        ttk.Label(name_frame, text="New Branch Name:").pack(anchor=tk.W)
         name_var = tk.StringVar()
-        ttk.Entry(dialog, textvariable=name_var, width=40).pack()
+        name_entry = ttk.Entry(name_frame, textvariable=name_var, width=45)
+        name_entry.pack(fill=tk.X, expand=True)
+
+        # AI Generation
+        ai_frame = ttk.Frame(name_frame)
+        ai_frame.pack(fill=tk.X, pady=(5,0))
+
+        prefix_var = tk.StringVar(value="feature/")
+        ttk.Label(ai_frame, text="Prefix:").pack(side=tk.LEFT, padx=(0,5))
+        ttk.Entry(ai_frame, textvariable=prefix_var, width=15).pack(side=tk.LEFT)
+
+        self.ai_branch_btn = ttk.Button(ai_frame, text="✨ Generate with AI",
+                                        command=lambda: self.generate_branch_name_threaded(name_var, prefix_var.get()))
+        self.ai_branch_btn.pack(side=tk.RIGHT)
         
-        # From Origin Option
+        # --- Source Section ---
         from_origin_var = tk.BooleanVar()
         origin_frame = ttk.LabelFrame(dialog, text="Source (Optional)", padding=10)
         origin_frame.pack(fill=tk.X, padx=20, pady=10)
@@ -152,7 +169,13 @@ class CommitGeneratorApp:
         
         lbl = ttk.Label(origin_frame, text="Select Remote Branch:")
         lbl.pack(anchor=tk.W, pady=(5, 0))
-        
+
+        # Add a filter entry
+        filter_var = tk.StringVar()
+        filter_entry = ttk.Entry(origin_frame, textvariable=filter_var, width=35)
+        filter_entry.pack(pady=5)
+        filter_entry.bind("<KeyRelease>", lambda e: self._filter_remote_branches(combo, filter_var.get()))
+
         combo.pack(pady=5)
         status_lbl.pack()
         
@@ -162,6 +185,29 @@ class CommitGeneratorApp:
         ttk.Button(btn_frame, text="Create", 
                    command=lambda: self._create_branch_action(dialog, name_var.get(), from_origin_var.get(), combo.get())).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
+
+    def generate_branch_name_threaded(self, name_var, prefix):
+        if not self.gemini_client.api_key:
+            return messagebox.showerror("Error", "Gemini API Key not configured.")
+        if self.staged_list.size() == 0:
+            return messagebox.showwarning("Warning", "Stage files to generate a branch name.")
+
+        self.ai_branch_btn.config(state=tk.DISABLED, text="Generating...")
+        threading.Thread(target=self._generate_branch_name_worker, args=(name_var, prefix), daemon=True).start()
+
+    def _generate_branch_name_worker(self, name_var, prefix):
+        try:
+            diff = self._run_git(["diff", "--cached"])
+            if not diff:
+                self.parent.after(0, lambda: messagebox.showinfo("Info", "No staged changes to analyze."))
+                return
+
+            branch_name = self.gemini_client.generate_branch_name(diff, prefix)
+            self.parent.after(0, lambda: name_var.set(branch_name))
+        except Exception as e:
+            self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to generate branch name:\n{e}"))
+        finally:
+            self.parent.after(0, lambda: self.ai_branch_btn.config(state=tk.NORMAL, text="✨ Generate with AI"))
 
     def _toggle_origin_combo(self, combo, var, status_lbl):
         if var.get():
@@ -177,24 +223,39 @@ class CommitGeneratorApp:
         try:
             self._run_git(["fetch", "origin"])
             out = self._run_git(["branch", "-r"])
-            # Parse lines like "  origin/HEAD -> origin/main", "  origin/main"
             branches = []
             for line in out.splitlines():
                 line = line.strip()
-                if "->" in line: continue # Skip pointers
+                if "->" in line: continue
                 if line.startswith("origin/"):
                     branches.append(line.replace("origin/", "", 1))
             
+            self.all_remote_branches = sorted(branches)
+
             def update_ui():
-                combo['values'] = branches
-                status_lbl.config(text=f"Found {len(branches)} remote branches.")
-                if branches:
+                combo['values'] = self.all_remote_branches
+                status_lbl.config(text=f"Found {len(self.all_remote_branches)} remote branches.")
+                if self.all_remote_branches:
                     combo.current(0)
             self.parent.after(0, update_ui)
         except Exception as e:
             def show_err():
                 status_lbl.config(text="Error fetching branches (Check network/remote)")
             self.parent.after(0, show_err)
+
+    def _filter_remote_branches(self, combo, filter_text):
+        if not hasattr(self, 'all_remote_branches'):
+            return
+
+        filtered_list = [b for b in self.all_remote_branches if filter_text.lower() in b.lower()]
+        current_val = combo.get()
+        combo['values'] = filtered_list
+        if current_val in filtered_list:
+            combo.set(current_val)
+        elif filtered_list:
+            combo.set(filtered_list[0])
+        else:
+            combo.set('')
 
     def _create_branch_action(self, dialog, name, from_origin, remote_branch):
         if not name:
