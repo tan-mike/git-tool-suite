@@ -19,7 +19,7 @@ def generate_version_json():
         "version": Config.APP_VERSION,
         "release_url": "https://github.com/tan-mike/git-tool-suite/releases",
         # Updated to point to the ZIP file
-        "download_url": f"https://github.com/tan-mike/git-tool-suite/releases/download/v{Config.APP_VERSION}/GitToolSuite-v{Config.APP_VERSION}.zip"
+        "download_url": f"https://github.com/tan-mike/git-tool-suite/releases/download/v{Config.APP_VERSION}/GitToolSuite.zip"
     }
     
     # Write to version.json
