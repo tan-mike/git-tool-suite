@@ -224,7 +224,7 @@ def build_updater():
 
 def create_release_bundle(version, exe_path, updater_path):
     """Package both executables into a single ZIP."""
-    bundle_name = f"GitToolSuite-v{version}.zip"
+    bundle_name = f"GitToolSuite.zip"
     bundle_path = Path("dist") / bundle_name
     
     print(f"\nCreating release bundle: {bundle_name}")
@@ -307,9 +307,6 @@ def create_github_release(version, bundle_path, release_notes=None):
     # Prepare release notes
     if not release_notes:
         release_notes = f"""# Git Tool Suite v{version}
-
-## Download
-- [GitToolSuite-v{version}.zip]({Config.UPDATE_CHECK_URL.replace('/raw/', '/download/')}/v{version}/GitToolSuite-v{version}.zip)
 
 ## What's New
 See [CHANGELOG.md](https://github.com/tan-mike/git-tool-suite/blob/main/CHANGELOG.md) for details.
