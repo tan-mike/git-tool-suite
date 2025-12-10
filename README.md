@@ -1,4 +1,4 @@
-# Git Tools Suite v3.2
+# Git Tools Suite v3.4
 
 A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, and AI-powered commit generation.
 
@@ -7,10 +7,14 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 ### 1. Commit Propagator
 
 - Cherry-pick commits across multiple branches
-- **NEW:** Combine multiple commits into one before propagating
+- **NEW v3.4:** Handle merge commits with parent selection
+- **NEW v3.4:** 🔄 Fetch and ⬇️ Pull buttons for repository updates
+- **NEW v3.4:** Select remote branches (origin/\*) as source
+- **NEW v3.4:** Pull any branch without switching to it
+- Combine multiple commits into one before propagating
 - Filter target branches with real-time search
 - Create new branches on-the-fly
-- Optional automatic push to remote
+- Optional automatic push to remote (with upstream tracking)
 
 ### 2. Branch Cleanup
 
@@ -24,29 +28,39 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Create GitHub PRs from the desktop
 - Branch filtering for easy selection
 - Auto-fill PR details from commit messages
-- **NEW:** Preview changed files and commits before creating PR
-- **NEW:** Open created PR directly in GitHub
+- **IMPROVED v3.4:** Push with upstream tracking enabled
+- Preview changed files and commits before creating PR
+- Open created PR directly in GitHub
 
-### 4. Commit Tool (NEW)
+### 4. Commit Tool
 
 - Interactive staging area for files
 - Generate conventional commit messages using Gemini AI
 - Analyze diffs of staged changes
+- Create branches with AI-generated names
 
 ### 5. AI Features (Optional)
 
 - Commit message generation
 - PR title/description generation
+- Branch name generation
 - Joke generator powered by Google Gemini
 - Birthday messages (December 12th)
 
-### 6. Automatic Updates (NEW)
+### 6. Automatic Updates
 
 - Check for updates from Settings tab
 - **One-click auto-update** for executable builds
 - Downloads and installs updates automatically
 - Seamless restart after update
 - Manual download option available
+
+### 7. Responsive UI (NEW v3.4)
+
+- **Auto-adapting window size** based on screen resolution
+- Taskbar-aware positioning (Windows)
+- Supports multiple monitor setups
+- Minimum size: 800x600, Maximum: 1400x900
 
 ## Installation
 
@@ -144,6 +158,14 @@ User preferences are automatically saved to `~/.git-tool-suite/preferences.json`
 - Propagator settings (max commits, auto-push)
 - Cleanup defaults (prefix, days, scope)
 - PR creator defaults
+
+## New in Version 3.4
+
+- **Merge Commit Support** - Detect, filter, and cherry-pick merge commits with parent selection
+- **Fetch & Pull** - Synchronize repositories directly from Commit Propagator
+- **Remote Branches** - Select origin/\* branches as source for propagation
+- **Upstream Tracking** - All pushes establish proper tracking relationships
+- **Responsive UI** - Auto-sizing window with taskbar awareness
 
 ## New in Version 3.2
 

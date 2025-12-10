@@ -27,7 +27,27 @@ class GitToolsSuiteApp:
         else:
             title = f"Git Productivity Tools Suite Ver: {Config.APP_VERSION}"
         self.root.title(title)
-        self.root.geometry("950x850")
+        
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Account for taskbar (typically 40-60px on Windows)
+        # Use 85% of screen height and subtract estimated taskbar space
+        taskbar_height = 60  # Conservative estimate for Windows taskbar
+        usable_height = screen_height - taskbar_height
+        
+        # Calculate window size - 90% width, 85% of usable height
+        window_width = min(int(screen_width * 0.9), 1400)
+        window_height = min(int(usable_height * 0.85), 900)
+        
+        # Calculate position to center window (account for taskbar)
+        position_x = (screen_width - window_width) // 2
+        position_y = (usable_height - window_height) // 2
+        
+        # Set geometry and minimum size
+        self.root.geometry(f"{window_width}x{window_height}+{position_x}+{position_y}")
+        self.root.minsize(800, 600)  # Minimum usable size
 
         self.joke_result = None
         self.gemini_client = GeminiClient() if Config.get_api_key() else None

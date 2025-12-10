@@ -97,7 +97,7 @@ class CommitGeneratorApp:
         self.log_label.config(text=msg)
         self.parent.update_idletasks()
 
-    def _run_git(self, args, check=True):
+    def _run_git(self, args, check=True, strip=True):
         if not self.repo_path.get():
             return ""
         try:
@@ -118,7 +118,8 @@ class CommitGeneratorApp:
             )
             if check and result.returncode != 0:
                 raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
-            return result.stdout.strip()
+            # Only strip trailing newline/whitespace if requested
+            return result.stdout.strip() if strip else result.stdout
         except Exception as e:
             self.log(f"Git Error: {e}")
             return ""
@@ -302,27 +303,30 @@ class CommitGeneratorApp:
         branch = self._run_git(["rev-parse", "--abbrev-ref", "HEAD"])
         self.current_branch.set(branch)
         
-        # Get status
-        status_out = self._run_git(["status", "--porcelain"])
+        # Get status - don't strip to preserve exact format
+        status_out = self._run_git(["status", "--porcelain"], strip=False)
         
         self.unstaged_list.delete(0, tk.END)
         self.staged_list.delete(0, tk.END)
         
         for line in status_out.splitlines():
             if not line: continue
-            code = line[:2]
-            path = line[3:]
+            # Git status --porcelain format: XY PATH
+            # X = index status (position 0), Y = worktree status (position 1)
+            # Position 2 is always a space, path starts at position 3
+            if len(line) < 4:  # Need at least XY<space>P
+                continue
+                
+            index_status = line[0]
+            worktree_status = line[1]
+            path = line[3:]  # Skip XY and the space
             
-            # X (index), Y (worktree)
-            index_status = code[0]
-            worktree_status = code[1]
-            
-            # If index has something (M, A, D, R, C), it's staged
-            if index_status in "MADRC":
+            # If index has something other than space or ?, it's staged
+            if index_status != ' ' and index_status != '?':
                 self.staged_list.insert(tk.END, path)
             
-            # If worktree has something (M, D, ?) or index is empty but worktree has something
-            if worktree_status in "MD?" or (index_status == '?' and worktree_status == '?'):
+            # If worktree has something other than space, it's unstaged
+            if worktree_status != ' ':
                 self.unstaged_list.insert(tk.END, path)
                 
         self.log(f"Status refreshed for {branch}")

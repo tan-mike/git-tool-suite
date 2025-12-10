@@ -431,7 +431,7 @@ class PullRequestApp:
         self.log("\n--- Creating Pull Request ---")
         try:
             self.log(f"Pushing '{source}' to origin...")
-            self._run_command(["git", "push", "origin", source])
+            self._run_command(["git", "push", "-u", "origin", source])
             command = ["gh", "pr", "create", "--base", target, "--head", source, "--title", title, "--body", body]
             result = self._run_command(command)
             self.log("✅ Pull Request created successfully!")
