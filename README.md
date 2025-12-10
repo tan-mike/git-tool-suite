@@ -143,7 +143,21 @@ For developers who want to create a standalone executable:
 3. **Build with PyInstaller:**
 
    ```bash
-   pyinstaller --onefile --windowed --name GitToolSuite main.py
+   # With icon (recommended)
+   pyinstaller --onefile --windowed --icon=assets/app_icon.ico --name GitToolSuite main.py
+
+   # Or use the automated build script
+   python generate_version.py --build
+   ```
+
+   **Note:** If using a custom .spec file, add the icon parameter:
+
+   ```python
+   # In GitToolSuite.spec
+   exe = EXE(
+       # ... other parameters ...
+       icon='assets/app_icon.ico',
+   )
    ```
 
 4. **Distribute:**

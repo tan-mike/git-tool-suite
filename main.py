@@ -48,6 +48,9 @@ class GitToolsSuiteApp:
         # Set geometry and minimum size
         self.root.geometry(f"{window_width}x{window_height}+{position_x}+{position_y}")
         self.root.minsize(800, 600)  # Minimum usable size
+        
+        # Set window icon
+        self._set_window_icon()
 
         self.joke_result = None
         self.gemini_client = GeminiClient() if Config.get_api_key() else None
@@ -92,6 +95,35 @@ class GitToolsSuiteApp:
         
         # Auto-check for updates once on launch
         self.check_for_updates_on_launch()
+    
+    def _set_window_icon(self):
+        """Set window icon for both development and frozen executable modes."""
+        import os
+        import sys
+        
+        icon_paths = []
+        
+        # For frozen executable (PyInstaller)
+        if getattr(sys, 'frozen', False):
+            # Icon embedded in executable via PyInstaller
+            base_path = sys._MEIPASS
+            icon_paths.append(os.path.join(base_path, 'assets', 'git_tools_suite.ico'))
+        else:
+            # For development mode
+            icon_paths.append(os.path.join('assets', 'git_tools_suite.ico'))
+            icon_paths.append('git_tools_suite.ico')  # Fallback
+        
+        # Try each path
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                try:
+                    self.root.iconbitmap(icon_path)
+                    return
+                except Exception as e:
+                    print(f"Could not set icon from {icon_path}: {e}")
+        
+        # If no icon found, silently continue with default icon
+        print("No custom icon found, using default")
 
     def tell_joke_threaded(self):
         """Entry point for joke generation."""
