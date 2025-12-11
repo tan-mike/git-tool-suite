@@ -47,9 +47,17 @@ class GitToolsSuiteApp:
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         
-        # Account for taskbar (typically 40-60px on Windows)
-        # Use 85% of screen height and subtract estimated taskbar space
-        taskbar_height = 60  # Conservative estimate for Windows taskbar
+        # Account for taskbar/dock
+        if sys.platform == 'win32':
+             taskbar_height = 60
+        elif sys.platform == 'darwin':
+             # Mac has top menu bar (~22px) and Dock (variable).
+             # winfo_screenheight is usually full screen including dock/menu.
+             # Reasonable buffer
+             taskbar_height = 100
+        else:
+             taskbar_height = 60
+
         usable_height = screen_height - taskbar_height
         
         # Calculate window size - 90% width, 85% of usable height
@@ -138,6 +146,8 @@ class GitToolsSuiteApp:
                     self.root.iconbitmap(icon_path)
                     return
                 except Exception as e:
+                    # On Mac/Linux iconbitmap sometimes fails with ICO files.
+                    # Just ignore and use default system icon if so.
                     print(f"Could not set icon from {icon_path}: {e}")
         
         # If no icon found, silently continue with default icon
@@ -309,14 +319,17 @@ def cleanup_old_versions():
         else:
             base_path = Path(__file__).parent
             
-        # Find all files ending in .exe.old
-        for old_file in base_path.glob("*.exe.old"):
-            try:
-                old_file.unlink()
-                print(f"Cleaned up old version: {old_file.name}")
-            except Exception as e:
-                # Retries will happen next launch
-                print(f"Could not delete {old_file.name}: {e}")
+        # Find all files ending in .old
+        # Clean both .exe.old and .old files
+        patterns = ["*.exe.old", "*.old"]
+        for pattern in patterns:
+            for old_file in base_path.glob(pattern):
+                try:
+                    old_file.unlink()
+                    print(f"Cleaned up old version: {old_file.name}")
+                except Exception as e:
+                    # Retries will happen next launch
+                    print(f"Could not delete {old_file.name}: {e}")
                 
     except Exception as e:
         print(f"Error during cleanup: {e}")
