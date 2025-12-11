@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import argparse
 import zipfile
+import os
 from pathlib import Path
 from config import Config
 
@@ -142,11 +143,9 @@ def build_application():
     shutil.rmtree('dist', ignore_errors=True)
     shutil.rmtree('build', ignore_errors=True)
     
-    # Check if spec file exists
     spec_file = Path('GitToolSuite.spec')
-    if not spec_file.exists():
-        print("❌ GitToolSuite.spec not found")
-        return None, None
+    # If spec file is missing, we will run pyinstaller with args
+    use_spec = spec_file.exists()
     
     # Run PyInstaller for main app
     print("Running PyInstaller for GitToolSuite...")
@@ -156,8 +155,30 @@ def build_application():
         if sys.platform == 'win32':
             creation_flags = subprocess.CREATE_NO_WINDOW
         
+        cmd = ['pyinstaller']
+        if use_spec:
+             cmd.extend(['GitToolSuite.spec', '--clean'])
+        else:
+             # Fallback command if spec is missing
+             cmd.extend(['--onefile', '--windowed', '--name', 'GitToolSuite', 'main.py', '--clean'])
+
+             # Add icon if exists
+             icon_path = Path('assets/git_tools_suite.ico')
+             if icon_path.exists():
+                 # On Mac, check if we should use .icns (if exists) or skip ico if problematic
+                 # PyInstaller on Mac supports .icns. .ico support is mixed but usually okay.
+                 if sys.platform == 'darwin':
+                      icns_path = icon_path.with_suffix('.icns')
+                      if icns_path.exists():
+                           cmd.append(f'--icon={icns_path}')
+                      else:
+                           # Try .ico anyway, PyInstaller might convert it or warn
+                           cmd.append(f'--icon={icon_path}')
+                 else:
+                      cmd.append(f'--icon={icon_path}')
+
         result = subprocess.run(
-            ['pyinstaller', 'GitToolSuite.spec', '--clean'],
+            cmd,
             check=True,
             capture_output=True,
             text=True,
@@ -171,12 +192,24 @@ def build_application():
         return None, None
     
     # Verify main output
-    exe_path = Path('dist/GitToolSuite.exe')
+    # On Mac with --windowed, it creates a .app bundle
+    if sys.platform == 'darwin':
+         exe_path = Path('dist/GitToolSuite.app')
+    elif sys.platform == 'win32':
+         exe_path = Path('dist/GitToolSuite.exe')
+    else:
+         exe_path = Path('dist/GitToolSuite')
+
     if not exe_path.exists():
-        print("❌ Build failed - executable not found at dist/GitToolSuite.exe")
+        print(f"❌ Build failed - executable not found at {exe_path}")
         return None, None
     
-    file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
+    # Calculate size (folder size if .app)
+    if exe_path.is_dir():
+         file_size = sum(f.stat().st_size for f in exe_path.rglob('*') if f.is_file()) / (1024 * 1024)
+    else:
+         file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
+
     print(f"✓ Main application built: {exe_path} ({file_size:.2f} MB)")
 
     # Build updater
@@ -186,29 +219,37 @@ def build_application():
 
 
 def build_updater():
-    """Build updater.exe using PyInstaller."""
+    """Build updater executable using PyInstaller."""
     print("\nBuilding updater executable...")
     
     spec_file = Path('updater.spec')
-    if not spec_file.exists():
-        print("⚠ updater.spec not found, skipping updater build")
-        return None
-        
+    use_spec = spec_file.exists()
+
     try:
         # Hide console window on Windows
         creation_flags = 0
         if sys.platform == 'win32':
             creation_flags = subprocess.CREATE_NO_WINDOW
             
+        cmd = ['pyinstaller']
+        if use_spec:
+             cmd.extend(['updater.spec', '--clean'])
+        else:
+             cmd.extend(['--onefile', '--console', '--name', 'updater', 'updater.py', '--clean'])
+
         result = subprocess.run(
-            ['pyinstaller', 'updater.spec', '--clean'],
+            cmd,
             check=True,
             capture_output=True,
             text=True,
             creationflags=creation_flags
         )
         
-        updater_path = Path('dist/updater.exe')
+        if sys.platform == 'win32':
+             updater_path = Path('dist/updater.exe')
+        else:
+             updater_path = Path('dist/updater')
+
         if updater_path.exists():
             size_mb = updater_path.stat().st_size / (1024 * 1024)
             print(f"✓ Updater built: {updater_path} ({size_mb:.2f} MB)")
@@ -231,7 +272,15 @@ def create_release_bundle(version, exe_path, updater_path):
     
     with zipfile.ZipFile(bundle_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         # Add main app
-        zf.write(exe_path, exe_path.name)
+        if exe_path.is_dir():
+             # Recursive add for .app bundle
+             for root, _, files in os.walk(exe_path):
+                 for file in files:
+                     file_path = Path(root) / file
+                     arcname = file_path.relative_to(exe_path.parent)
+                     zf.write(file_path, arcname)
+        else:
+             zf.write(exe_path, exe_path.name)
         
         # Add updater if exists
         if updater_path and updater_path.exists():
@@ -244,17 +293,17 @@ def create_release_bundle(version, exe_path, updater_path):
 QUICK START
 -----------
 1. Extract all files to a folder
-2. Run GitToolSuite.exe
+2. Run {'GitToolSuite.exe' if sys.platform == 'win32' else 'GitToolSuite'}
 3. No installation or Python required!
 
 FILES
 -----
-- GitToolSuite.exe - Main application
-- updater.exe - Auto-updater (used automatically)
+- {'GitToolSuite.exe' if sys.platform == 'win32' else 'GitToolSuite' if sys.platform != 'darwin' else 'GitToolSuite.app'} - Main application
+- {'updater.exe' if sys.platform == 'win32' else 'updater'} - Auto-updater (used automatically)
 
 REQUIREMENTS
 ------------
-- Windows 10 or later
+- {sys.platform}
 - No additional software needed
 
 MORE INFO
@@ -314,7 +363,7 @@ See [CHANGELOG.md](https://github.com/tan-mike/git-tool-suite/blob/main/CHANGELO
 ## Installation
 1. Download the ZIP file
 2. Extract all contents to a folder
-3. Run `GitToolSuite.exe`
+3. Run `{'GitToolSuite.exe' if sys.platform == 'win32' else 'GitToolSuite'}`
 
 No installation required!
 """
