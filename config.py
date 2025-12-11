@@ -25,7 +25,7 @@ class Config:
     _PREFS_FILE = _CONFIG_DIR / 'preferences.json'
     
     # App Metadata
-    APP_VERSION = "3.4.1"
+    APP_VERSION = "3.5.0"
     IS_LIMITED_BUILD = True # Set to True for builds without API key setup
     UPDATE_CHECK_URL = "https://gist.githubusercontent.com/tan-mike/37c92fd3e04d4663fc70948567ec932d/raw/version.json"
 
@@ -154,6 +154,11 @@ class Config:
             },
             "pr_creator": {
                 "default_target": "main"
+            },
+            "branch_refresh": {
+                "tracked_repos": {},  # Dict: {"/path/to/repo": ["branch1", "branch2"]}
+                "refresh_interval_hours": 24,
+                "auto_refresh_enabled": False
             }
         }
     

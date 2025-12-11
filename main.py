@@ -27,6 +27,7 @@ from apps.propagator import GitPropagatorApp
 from apps.cleanup import BranchCleanerApp
 from apps.pull_request import PullRequestApp
 from apps.commit_generator import CommitGeneratorApp
+from apps.branch_refresh import BranchRefreshApp
 from apps.settings import SettingsApp
 from ai.gemini_client import GeminiClient
 from config import Config
@@ -83,12 +84,14 @@ class GitToolsSuiteApp:
         tab_cleanup = ttk.Frame(self.notebook)
         tab_pr_creator = ttk.Frame(self.notebook)
         tab_commit = ttk.Frame(self.notebook)
+        tab_branch_refresh = ttk.Frame(self.notebook)
         tab_settings = ttk.Frame(self.notebook)
         
         self.notebook.add(tab_propagator, text='Commit Propagator')
         self.notebook.add(tab_cleanup, text='Branch Cleanup')
         self.notebook.add(tab_pr_creator, text='Create Pull Request')
         self.notebook.add(tab_commit, text='Commit Tool')
+        self.notebook.add(tab_branch_refresh, text='Branch Refresh')
         self.notebook.add(tab_settings, text='Settings')
         self.notebook.pack(expand=True, fill="both", pady=(0, 5))
 
@@ -97,9 +100,10 @@ class GitToolsSuiteApp:
         self.cleanup_app = BranchCleanerApp(tab_cleanup)
         self.pr_app = PullRequestApp(tab_pr_creator)
         self.commit_app = CommitGeneratorApp(tab_commit)
+        self.branch_refresh_app = BranchRefreshApp(tab_branch_refresh)
         self.settings_app = SettingsApp(tab_settings)
 
-        self.tab_apps = [self.propagator_app, self.cleanup_app, self.pr_app, self.commit_app, self.settings_app]
+        self.tab_apps = [self.propagator_app, self.cleanup_app, self.pr_app, self.commit_app, self.branch_refresh_app, self.settings_app]
 
         if not self.gemini_client:
             self.joke_button.config(state=tk.DISABLED)

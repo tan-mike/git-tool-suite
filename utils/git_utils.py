@@ -96,3 +96,74 @@ def get_commit_info(repo_path, branch, max_commits=50):
         repo_path
     )
     return log_output.splitlines()
+
+
+def get_tracking_branch(repo_path, branch_name):
+    """
+    Get the remote tracking branch for a local branch.
+    
+    Args:
+        repo_path (str): Path to the Git repository
+        branch_name (str): Local branch name
+        
+    Returns:
+        str: Remote tracking branch (e.g., "origin/develop") or None if no tracking branch
+    """
+    try:
+        tracking = run_git_command(
+            f"rev-parse --abbrev-ref {branch_name}@{{upstream}}",
+            repo_path,
+            check=False
+        )
+        return tracking if tracking else None
+    except Exception:
+        return None
+
+
+def has_uncommitted_changes(repo_path):
+    """
+    Check if repository has uncommitted changes.
+    
+    Args:
+        repo_path (str): Path to the Git repository
+        
+    Returns:
+        bool: True if there are uncommitted changes, False otherwise
+    """
+    try:
+        status_output = run_git_command("status --porcelain", repo_path)
+        return bool(status_output.strip())
+    except Exception:
+        return True  # Assume dirty state on error for safety
+
+
+def get_branches_with_tracking(repo_path):
+    """
+    Get list of local branches that have remote tracking branches.
+    
+    Args:
+        repo_path (str): Path to the Git repository
+        
+    Returns:
+        list[tuple]: List of tuples [(local_branch, remote_tracking), ...]
+    """
+    try:
+        # Use git for-each-ref to get all branches and their tracking in ONE command
+        # Format: local_branch|tracking_branch (e.g., "develop|origin/develop")
+        output = run_git_command(
+            "for-each-ref --format='%(refname:short)|%(upstream:short)' refs/heads/",
+            repo_path
+        )
+        
+        branches_with_tracking = []
+        
+        for line in output.splitlines():
+            if '|' in line:
+                local_branch, tracking = line.split('|', 1)
+                # Only include if tracking branch exists (not empty)
+                if tracking.strip():
+                    branches_with_tracking.append((local_branch, tracking))
+        
+        return branches_with_tracking
+    except Exception:
+        return []
