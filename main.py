@@ -3,6 +3,20 @@ Git Tools Suite - Main Application Entry Point
 Version 3.0 (Modular Edition)
 """
 
+# CRITICAL: Windows taskbar icon fix - Set App User Model ID BEFORE any imports
+# This MUST be set before tkinter is imported for Windows to display the custom icon
+import sys
+if sys.platform == 'win32':
+    try:
+        import ctypes
+        # Set a unique App User Model ID for Windows taskbar icon
+        myappid = 'tan.mike.gittoolssuite.v3'  # arbitrary string
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        print("App User Model ID set successfully")  # Debug message
+    except Exception as e:
+        print(f"Could not set App User Model ID: {e}")
+
+# Now import everything else
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import threading

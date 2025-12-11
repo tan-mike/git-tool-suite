@@ -16,6 +16,12 @@ dist/
 build/
 *.spec
 build_clean.ps1
+clear_icon_cache.ps1
+test_taskbar_icon.ps1
+create_multisize_icon.py
+create_proper_icon.py
+check_icon.py
+ICON_SIZE_FIX.md
 
 # Installer logs
 pip-log.txt
