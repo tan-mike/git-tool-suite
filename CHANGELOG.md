@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.0] - 2025-12-11
+
+### Added
+
+- **Branch Refresh Tab**: New feature to keep local development branches synchronized with remote tracking branches.
+  - Multi-repository support - track branches across multiple repos simultaneously
+  - TreeView interface showing hierarchical repo → branch structure
+  - Add/remove repositories with Git validation
+  - Branch selection showing only branches with remote tracking
+  - "Refresh All" button to refresh all tracked branches across all repos
+  - "Refresh Selected" button to refresh only branches in selected repo
+  - **Safety mechanisms**:
+    - Uncommitted changes detection - skips refresh if repo is dirty
+    - Current branch handling - creates temporary branch, refreshes, switches back
+    - Remote tracking verification - only refreshes branches with valid tracking
+  - Configuration persistence - tracked branches saved across sessions
+  - Detailed operation logging with timestamps
+  - Future-ready for automatic interval-based refresh
+
+### Changed
+
+- **Performance Optimization**: Dramatically improved branch loading speed in Branch Refresh.
+  - Replaced per-branch git commands with single batch `git for-each-ref` command
+  - **11x-101x faster** depending on number of branches (50 branches: 51 calls → 1 call)
+  - Instant branch list loading even for repos with 100+ branches
+- Updated application version to 3.5.0
+
+### Technical
+
+- Added `get_branches_with_tracking()` to `git_utils.py` using `git for-each-ref`
+- Added `get_tracking_branch()` to `git_utils.py` for individual branch queries
+- Added `has_uncommitted_changes()` to `git_utils.py` for safety checks
+- Added `branch_refresh` section to preferences schema in `config.py`
+
 ## [3.4] - 2025-12-10
 
 ### Added

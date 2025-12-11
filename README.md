@@ -1,6 +1,6 @@
-# Git Tools Suite v3.4
+# Git Tools Suite v3.5
 
-A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, and AI-powered commit generation.
+A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, AI-powered commit generation, and automated branch synchronization.
 
 ## Features
 
@@ -39,7 +39,22 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Analyze diffs of staged changes
 - Create branches with AI-generated names
 
-### 5. AI Features (Optional)
+### 5. Branch Refresh (NEW v3.5)
+
+- Keep local development branches in sync with remote tracking branches
+- Multi-repository support - track branches across multiple repos
+- **Safety-first approach:**
+  - Skips branches with uncommitted changes
+  - Handles currently checked-out branches automatically
+  - Only refreshes branches with valid remote tracking
+- Manual refresh options:
+  - Refresh all tracked branches across all repos
+  - Refresh selected repository only
+- Configuration persistence across sessions
+- **Optimized performance** - instant loading even with 100+ branches
+- Detailed operation logging
+
+### 6. AI Features (Optional)
 
 - Commit message generation
 - PR title/description generation
@@ -47,7 +62,7 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Joke generator powered by Google Gemini
 - Birthday messages (December 12th)
 
-### 6. Automatic Updates
+### 7. Automatic Updates
 
 - Check for updates from Settings tab
 - **One-click auto-update** for executable builds
@@ -55,7 +70,7 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Seamless restart after update
 - Manual download option available
 
-### 7. Responsive UI (NEW v3.4)
+### 8. Responsive UI (NEW v3.4)
 
 - **Auto-adapting window size** based on screen resolution
 - Taskbar-aware positioning (Windows)
@@ -108,7 +123,9 @@ GitToolSuite_v3/
 │   ├── propagator.py      # Commit Propagator
 │   ├── cleanup.py         # Branch Cleanup
 │   ├── pull_request.py    # PR Creator
-│   └── commit_generator.py # Commit Tool
+│   ├── commit_generator.py # Commit Tool
+│   ├── branch_refresh.py  # Branch Refresh
+│   └── settings.py        # Settings
 ├── utils/                  # Shared utilities
 │   ├── git_utils.py       # Git operations
 │   └── ui_utils.py        # UI helpers
@@ -172,6 +189,14 @@ User preferences are automatically saved to `~/.git-tool-suite/preferences.json`
 - Propagator settings (max commits, auto-push)
 - Cleanup defaults (prefix, days, scope)
 - PR creator defaults
+- Branch refresh tracked repositories
+
+## New in Version 3.5.0
+
+- **Branch Refresh** - Automated synchronization of local branches with remote tracking branches
+- **Multi-Repository Tracking** - Manage branches across multiple repos simultaneously
+- **Safety Checks** - Uncommitted changes detection and current branch handling
+- **Performance Optimization** - 11x-101x faster branch loading using batch git commands
 
 ## New in Version 3.4
 
