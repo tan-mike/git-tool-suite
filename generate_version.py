@@ -9,17 +9,21 @@ import shutil
 import subprocess
 import argparse
 import zipfile
+import os
 from pathlib import Path
 from config import Config
 
 
 def generate_version_json():
     """Generate version.json with data from Config."""
+    version = Config.APP_VERSION
+    base_url = "https://github.com/tan-mike/git-tool-suite/releases"
+    
     version_data = {
-        "version": Config.APP_VERSION,
-        "release_url": "https://github.com/tan-mike/git-tool-suite/releases",
-        # Updated to point to the ZIP file
-        "download_url": f"https://github.com/tan-mike/git-tool-suite/releases/download/v{Config.APP_VERSION}/GitToolSuite.zip"
+        "version": version,
+        "release_url": base_url,
+        "download_url": f"{base_url}/download/v{version}/GitToolSuite.zip",  # Default/Windows (Legacy)
+        "download_mac_url": f"{base_url}/download/v{version}/GitToolSuite_Mac.zip"
     }
     
     # Write to version.json
@@ -27,9 +31,10 @@ def generate_version_json():
     with open(version_file, 'w') as f:
         json.dump(version_data, f, indent=2)
     
-    print(f"✓ Generated version.json for version {Config.APP_VERSION}")
+    print(f"✓ Generated version.json for version {version}")
     print(f"  Release URL: {version_data['release_url']}")
-    print(f"  Download URL: {version_data['download_url']}")
+    print(f"  Download URL (Win): {version_data['download_url']}")
+    print(f"  Download URL (Mac): {version_data['download_mac_url']}")
     
     return version_data
 
@@ -110,8 +115,8 @@ def check_version_not_released(version):
         )
         
         if result.stdout.strip():
-            print(f"❌ Tag v{version} already exists locally")
-            return False
+            print(f"⚠ Tag v{version} already exists locally (Continuing for multi-platform release)")
+            # return False
         
         # Check remote tags
         result = subprocess.run(
@@ -122,8 +127,8 @@ def check_version_not_released(version):
         )
         
         if result.stdout.strip():
-            print(f"❌ Tag v{version} already exists on remote")
-            return False
+            print(f"⚠ Tag v{version} already exists on remote (Continuing for multi-platform release)")
+            # return False
         
         print(f"✓ Version v{version} not yet released")
         return True
@@ -142,11 +147,9 @@ def build_application():
     shutil.rmtree('dist', ignore_errors=True)
     shutil.rmtree('build', ignore_errors=True)
     
-    # Check if spec file exists
     spec_file = Path('GitToolSuite.spec')
-    if not spec_file.exists():
-        print("❌ GitToolSuite.spec not found")
-        return None, None
+    # If spec file is missing, we will run pyinstaller with args
+    use_spec = spec_file.exists()
     
     # Run PyInstaller for main app
     print("Running PyInstaller for GitToolSuite...")
@@ -156,8 +159,30 @@ def build_application():
         if sys.platform == 'win32':
             creation_flags = subprocess.CREATE_NO_WINDOW
         
+        cmd = ['pyinstaller']
+        if use_spec:
+             cmd.extend(['GitToolSuite.spec', '--clean'])
+        else:
+             # Fallback command if spec is missing
+             cmd.extend(['--onefile', '--windowed', '--name', 'GitToolSuite', 'main.py', '--clean'])
+
+             # Add icon if exists
+             icon_path = Path('assets/git_tools_suite.ico')
+             if icon_path.exists():
+                 # On Mac, check if we should use .icns (if exists) or skip ico if problematic
+                 # PyInstaller on Mac supports .icns. .ico support is mixed but usually okay.
+                 if sys.platform == 'darwin':
+                      icns_path = icon_path.with_suffix('.icns')
+                      if icns_path.exists():
+                           cmd.append(f'--icon={icns_path}')
+                      else:
+                           # Try .ico anyway, PyInstaller might convert it or warn
+                           cmd.append(f'--icon={icon_path}')
+                 else:
+                      cmd.append(f'--icon={icon_path}')
+
         result = subprocess.run(
-            ['pyinstaller', 'GitToolSuite.spec', '--clean'],
+            cmd,
             check=True,
             capture_output=True,
             text=True,
@@ -171,12 +196,24 @@ def build_application():
         return None, None
     
     # Verify main output
-    exe_path = Path('dist/GitToolSuite.exe')
+    # On Mac with --windowed, it creates a .app bundle
+    if sys.platform == 'darwin':
+         exe_path = Path('dist/GitToolSuite.app')
+    elif sys.platform == 'win32':
+         exe_path = Path('dist/GitToolSuite.exe')
+    else:
+         exe_path = Path('dist/GitToolSuite')
+
     if not exe_path.exists():
-        print("❌ Build failed - executable not found at dist/GitToolSuite.exe")
+        print(f"❌ Build failed - executable not found at {exe_path}")
         return None, None
     
-    file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
+    # Calculate size (folder size if .app)
+    if exe_path.is_dir():
+         file_size = sum(f.stat().st_size for f in exe_path.rglob('*') if f.is_file()) / (1024 * 1024)
+    else:
+         file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
+
     print(f"✓ Main application built: {exe_path} ({file_size:.2f} MB)")
 
     # Build updater
@@ -186,29 +223,37 @@ def build_application():
 
 
 def build_updater():
-    """Build updater.exe using PyInstaller."""
+    """Build updater executable using PyInstaller."""
     print("\nBuilding updater executable...")
     
     spec_file = Path('updater.spec')
-    if not spec_file.exists():
-        print("⚠ updater.spec not found, skipping updater build")
-        return None
-        
+    use_spec = spec_file.exists()
+
     try:
         # Hide console window on Windows
         creation_flags = 0
         if sys.platform == 'win32':
             creation_flags = subprocess.CREATE_NO_WINDOW
             
+        cmd = ['pyinstaller']
+        if use_spec:
+             cmd.extend(['updater.spec', '--clean'])
+        else:
+             cmd.extend(['--onefile', '--console', '--name', 'updater', 'updater.py', '--clean'])
+
         result = subprocess.run(
-            ['pyinstaller', 'updater.spec', '--clean'],
+            cmd,
             check=True,
             capture_output=True,
             text=True,
             creationflags=creation_flags
         )
         
-        updater_path = Path('dist/updater.exe')
+        if sys.platform == 'win32':
+             updater_path = Path('dist/updater.exe')
+        else:
+             updater_path = Path('dist/updater')
+
         if updater_path.exists():
             size_mb = updater_path.stat().st_size / (1024 * 1024)
             print(f"✓ Updater built: {updater_path} ({size_mb:.2f} MB)")
@@ -224,14 +269,28 @@ def build_updater():
 
 def create_release_bundle(version, exe_path, updater_path):
     """Package both executables into a single ZIP."""
-    bundle_name = f"GitToolSuite.zip"
+    # Platform specific naming
+    if sys.platform == 'darwin':
+        bundle_name = f"GitToolSuite_Mac.zip"
+    else:
+        # Default/Windows uses standard name for backward compatibility
+        bundle_name = f"GitToolSuite.zip"
+        
     bundle_path = Path("dist") / bundle_name
     
     print(f"\nCreating release bundle: {bundle_name}")
     
     with zipfile.ZipFile(bundle_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         # Add main app
-        zf.write(exe_path, exe_path.name)
+        if exe_path.is_dir():
+             # Recursive add for .app bundle
+             for root, _, files in os.walk(exe_path):
+                 for file in files:
+                     file_path = Path(root) / file
+                     arcname = file_path.relative_to(exe_path.parent)
+                     zf.write(file_path, arcname)
+        else:
+             zf.write(exe_path, exe_path.name)
         
         # Add updater if exists
         if updater_path and updater_path.exists():
@@ -244,17 +303,17 @@ def create_release_bundle(version, exe_path, updater_path):
 QUICK START
 -----------
 1. Extract all files to a folder
-2. Run GitToolSuite.exe
+2. Run {'GitToolSuite.exe' if sys.platform == 'win32' else 'GitToolSuite'}
 3. No installation or Python required!
 
 FILES
 -----
-- GitToolSuite.exe - Main application
-- updater.exe - Auto-updater (used automatically)
+- {'GitToolSuite.exe' if sys.platform == 'win32' else 'GitToolSuite' if sys.platform != 'darwin' else 'GitToolSuite.app'} - Main application
+- {'updater.exe' if sys.platform == 'win32' else 'updater'} - Auto-updater (used automatically)
 
 REQUIREMENTS
 ------------
-- Windows 10 or later
+- {sys.platform}
 - No additional software needed
 
 MORE INFO
@@ -293,7 +352,12 @@ def create_git_tag(version):
         
         return True
         
+        return True
+        
     except subprocess.CalledProcessError as e:
+        if "already exists" in e.stderr:
+             print(f"⚠ Tag already exists (expected for second platform)")
+             return True
         print(f"❌ Failed to create/push tag: {e}")
         return False
 
@@ -314,32 +378,45 @@ See [CHANGELOG.md](https://github.com/tan-mike/git-tool-suite/blob/main/CHANGELO
 ## Installation
 1. Download the ZIP file
 2. Extract all contents to a folder
-3. Run `GitToolSuite.exe`
+3. Run `{'GitToolSuite.exe' if sys.platform == 'win32' else 'GitToolSuite'}`
 
 No installation required!
 """
     
     try:
-        # Create release with gh CLI
-        print(f"Creating release {tag_name} with bundle...")
+        # Check if release exists first
+        print(f"Checking if release {tag_name} exists...")
+        check_cmd = ['gh', 'release', 'view', tag_name]
+        release_exists = subprocess.run(check_cmd, capture_output=True).returncode == 0
         
-        cmd = [
-            'gh', 'release', 'create', tag_name,
-            str(bundle_path),
-            '--title', f'Git Tool Suite v{version}',
-            '--notes', release_notes,
-            '--repo', 'tan-mike/git-tool-suite'
-        ]
+        if release_exists:
+            print(f"Release {tag_name} exists. Uploading asset to existing release...")
+            cmd = [
+                'gh', 'release', 'upload', tag_name,
+                str(bundle_path),
+                '--clobber', # Overwrite if exists
+                '--repo', 'tan-mike/git-tool-suite'
+            ]
+        else:
+            # Create new release
+            print(f"Creating release {tag_name} with bundle...")
+            cmd = [
+                'gh', 'release', 'create', tag_name,
+                str(bundle_path),
+                '--title', f'Git Tool Suite v{version}',
+                '--notes', release_notes,
+                '--repo', 'tan-mike/git-tool-suite'
+            ]
         
         subprocess.run(cmd, check=True)
         
-        print(f"✓ Release v{version} created successfully!")
+        print(f"✓ Release v{version} updated/created successfully!")
         print(f"  View: https://github.com/tan-mike/git-tool-suite/releases/tag/{tag_name}")
         
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create GitHub release: {e}")
+        print(f"❌ Failed to create/update GitHub release: {e}")
         return False
 
 

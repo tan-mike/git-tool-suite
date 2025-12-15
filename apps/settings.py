@@ -10,6 +10,8 @@ import threading
 import webbrowser
 import shutil
 import tempfile
+import sys
+from pathlib import Path
 
 from config import Config
 from utils.versioning import is_newer_version
@@ -167,6 +169,11 @@ class SettingsApp:
             release_url = data.get('release_url', "https://github.com/tan-mike/git-tool-suite/releases")
             download_url = data.get('download_url')
             
+            # Platform-specific download URL
+            if sys.platform == 'darwin' and data.get('download_mac_url'):
+                download_url = data.get('download_mac_url')
+            # Windows/Default falls back to download_url which is already set above
+            
             self.parent.after(0, lambda: self._show_update_result(latest_version, release_url, download_url))
         except Exception as e:
             error_msg = f"Failed to check for updates:\n{e}"
@@ -208,10 +215,11 @@ class SettingsApp:
     def _download_and_install_update(self, download_url):
         """Download and install the update automatically with progress tracking."""
         import sys
-        from pathlib import Path
+        # from pathlib import Path # Already imported
         import tempfile
         import subprocess
         import time
+        import os
         
         try:
             # Show progress window
@@ -321,19 +329,49 @@ class SettingsApp:
                         # Close progress window
                         self.parent.after(0, progress_window.destroy)
                         
-                        # Launch updater.exe
+                        # Launch updater
                         current_exe = Path(sys.executable)
-                        updater_exe = current_exe.parent / 'updater.exe'
                         
-                        # Check if updater exists
-                        if not updater_exe.exists():
-                            error_msg = "Updater not found!\n\n"
-                            error_msg += f"Expected location: {updater_exe}\n\n"
-                            error_msg += "Please download the complete ZIP package from:\n"
-                            error_msg += "https://github.com/tan-mike/git-tool-suite/releases"
-                            self.parent.after(0, lambda: messagebox.showerror("Update Error", error_msg))
-                            return
+                        # Determine updater name based on platform
+                        updater_name = 'updater.exe' if sys.platform == 'win32' else 'updater'
                         
+                        # If running from a .app bundle, the updater is outside the bundle
+                        # App structure: dist/GitToolSuite.app/Contents/MacOS/GitToolSuite
+                        # Updater location: dist/updater
+                        # So we need to go up from current_exe to find dist/, then find updater
+
+                        updater_exe = None
+                        if sys.platform == 'darwin' and '.app/Contents/MacOS' in str(current_exe):
+                             # Walk up to the folder containing the .app
+                             temp_path = current_exe
+                             while temp_path.parent != temp_path:
+                                 if temp_path.name.endswith('.app'):
+                                     # Found .app, parent is dist/ (or wherever installed)
+                                     updater_exe = temp_path.parent / updater_name
+                                     break
+                                 temp_path = temp_path.parent
+                        else:
+                             # Standard case (Windows or Linux single file)
+                             updater_exe = current_exe.parent / updater_name
+
+                        # Fallback / Check if updater exists
+                        if not updater_exe or not updater_exe.exists():
+                            # Try simple parent just in case
+                            if not updater_exe:
+                                updater_exe = current_exe.parent / updater_name
+
+                            if not updater_exe.exists():
+                                error_msg = "Updater not found!\n\n"
+                                error_msg += f"Expected location: {updater_exe}\n\n"
+                                error_msg += "Please download the complete ZIP package from:\n"
+                                error_msg += "https://github.com/tan-mike/git-tool-suite/releases"
+                                self.parent.after(0, lambda: messagebox.showerror("Update Error", error_msg))
+                                return
+
+                        # Make sure updater is executable on non-windows
+                        if sys.platform != 'win32':
+                             os.chmod(updater_exe, 0o755)
+
                         # Start updater process directly
                         subprocess.Popen(
                             [str(updater_exe), str(current_exe), str(temp_zip)],
@@ -388,4 +426,3 @@ class SettingsApp:
             
         except Exception as e:
             messagebox.showerror("Update Error", f"Failed to start update:\n{e}")
-

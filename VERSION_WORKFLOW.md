@@ -31,24 +31,30 @@ Before releasing, ensure you have:
 APP_VERSION = "3.3.0"  # Change this
 ```
 
-### 2. Run the automated release pipeline
-
+### 2. Multi-Platform Release (Win + Mac)
+   
+**Step 1: Release on First Platform (e.g., Mac)**
+   
+Run the release command:
 ```bash
 python generate_version.py --release
 ```
+This will:
+- Generate `version.json`
+- Build the app (e.g., `GitToolSuite_Mac.zip`)
+- Create tag and release on GitHub
+   
+**Step 2: Upload Release on Second Platform (e.g., Windows)**
+   
+1. Pull the latest code (to get the updated `version.json` if you committed it, or ensure `config.py` matches).
+2. Run the release command again:
+```bash
+python generate_version.py --release
+```
+The script will detect the existing release and **upload the Windows asset** (`GitToolSuite.zip`) to it instead of creating a new one.
 
-This single command will:
-
-- ✓ Check prerequisites (gh, pyinstaller, git)
-- ✓ Verify git working directory is clean
-- ✓ Confirm version not already released
-- ✓ Generate version.json
-- ✓ Build GitToolSuite.exe with PyInstaller
-- ✓ Copy updater.py to dist/
-- ✓ Create git tag `v3.3.0`
-- ✓ Push tag to GitHub
-- ✓ Create GitHub release
-- ✓ Upload GitToolSuite.exe and updater.py to release
+**Result:**
+The GitHub release will contain both `GitToolSuite_Mac.zip` and `GitToolSuite.zip`. Uses on both platforms will get the correct download link from `version.json`.
 
 **That's it!** The entire release is automated.
 
