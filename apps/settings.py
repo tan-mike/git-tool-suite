@@ -169,6 +169,11 @@ class SettingsApp:
             release_url = data.get('release_url', "https://github.com/tan-mike/git-tool-suite/releases")
             download_url = data.get('download_url')
             
+            # Platform-specific download URL
+            if sys.platform == 'darwin' and data.get('download_mac_url'):
+                download_url = data.get('download_mac_url')
+            # Windows/Default falls back to download_url which is already set above
+            
             self.parent.after(0, lambda: self._show_update_result(latest_version, release_url, download_url))
         except Exception as e:
             error_msg = f"Failed to check for updates:\n{e}"

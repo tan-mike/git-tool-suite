@@ -16,11 +16,14 @@ from config import Config
 
 def generate_version_json():
     """Generate version.json with data from Config."""
+    version = Config.APP_VERSION
+    base_url = "https://github.com/tan-mike/git-tool-suite/releases"
+    
     version_data = {
-        "version": Config.APP_VERSION,
-        "release_url": "https://github.com/tan-mike/git-tool-suite/releases",
-        # Updated to point to the ZIP file
-        "download_url": f"https://github.com/tan-mike/git-tool-suite/releases/download/v{Config.APP_VERSION}/GitToolSuite.zip"
+        "version": version,
+        "release_url": base_url,
+        "download_url": f"{base_url}/download/v{version}/GitToolSuite.zip",  # Default/Windows (Legacy)
+        "download_mac_url": f"{base_url}/download/v{version}/GitToolSuite_Mac.zip"
     }
     
     # Write to version.json
@@ -28,9 +31,10 @@ def generate_version_json():
     with open(version_file, 'w') as f:
         json.dump(version_data, f, indent=2)
     
-    print(f"✓ Generated version.json for version {Config.APP_VERSION}")
+    print(f"✓ Generated version.json for version {version}")
     print(f"  Release URL: {version_data['release_url']}")
-    print(f"  Download URL: {version_data['download_url']}")
+    print(f"  Download URL (Win): {version_data['download_url']}")
+    print(f"  Download URL (Mac): {version_data['download_mac_url']}")
     
     return version_data
 
@@ -111,8 +115,8 @@ def check_version_not_released(version):
         )
         
         if result.stdout.strip():
-            print(f"❌ Tag v{version} already exists locally")
-            return False
+            print(f"⚠ Tag v{version} already exists locally (Continuing for multi-platform release)")
+            # return False
         
         # Check remote tags
         result = subprocess.run(
@@ -123,8 +127,8 @@ def check_version_not_released(version):
         )
         
         if result.stdout.strip():
-            print(f"❌ Tag v{version} already exists on remote")
-            return False
+            print(f"⚠ Tag v{version} already exists on remote (Continuing for multi-platform release)")
+            # return False
         
         print(f"✓ Version v{version} not yet released")
         return True
@@ -265,7 +269,13 @@ def build_updater():
 
 def create_release_bundle(version, exe_path, updater_path):
     """Package both executables into a single ZIP."""
-    bundle_name = f"GitToolSuite.zip"
+    # Platform specific naming
+    if sys.platform == 'darwin':
+        bundle_name = f"GitToolSuite_Mac.zip"
+    else:
+        # Default/Windows uses standard name for backward compatibility
+        bundle_name = f"GitToolSuite.zip"
+        
     bundle_path = Path("dist") / bundle_name
     
     print(f"\nCreating release bundle: {bundle_name}")
@@ -342,7 +352,12 @@ def create_git_tag(version):
         
         return True
         
+        return True
+        
     except subprocess.CalledProcessError as e:
+        if "already exists" in e.stderr:
+             print(f"⚠ Tag already exists (expected for second platform)")
+             return True
         print(f"❌ Failed to create/push tag: {e}")
         return False
 
@@ -369,26 +384,39 @@ No installation required!
 """
     
     try:
-        # Create release with gh CLI
-        print(f"Creating release {tag_name} with bundle...")
+        # Check if release exists first
+        print(f"Checking if release {tag_name} exists...")
+        check_cmd = ['gh', 'release', 'view', tag_name]
+        release_exists = subprocess.run(check_cmd, capture_output=True).returncode == 0
         
-        cmd = [
-            'gh', 'release', 'create', tag_name,
-            str(bundle_path),
-            '--title', f'Git Tool Suite v{version}',
-            '--notes', release_notes,
-            '--repo', 'tan-mike/git-tool-suite'
-        ]
+        if release_exists:
+            print(f"Release {tag_name} exists. Uploading asset to existing release...")
+            cmd = [
+                'gh', 'release', 'upload', tag_name,
+                str(bundle_path),
+                '--clobber', # Overwrite if exists
+                '--repo', 'tan-mike/git-tool-suite'
+            ]
+        else:
+            # Create new release
+            print(f"Creating release {tag_name} with bundle...")
+            cmd = [
+                'gh', 'release', 'create', tag_name,
+                str(bundle_path),
+                '--title', f'Git Tool Suite v{version}',
+                '--notes', release_notes,
+                '--repo', 'tan-mike/git-tool-suite'
+            ]
         
         subprocess.run(cmd, check=True)
         
-        print(f"✓ Release v{version} created successfully!")
+        print(f"✓ Release v{version} updated/created successfully!")
         print(f"  View: https://github.com/tan-mike/git-tool-suite/releases/tag/{tag_name}")
         
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create GitHub release: {e}")
+        print(f"❌ Failed to create/update GitHub release: {e}")
         return False
 
 

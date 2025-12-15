@@ -89,7 +89,17 @@ Download and run the standalone executable - no installation required!
 
 2. **Install dependencies:**
 
+   Run the setup script to create a virtual environment and install dependencies:
+   
    ```bash
+   ./setup_venv.sh
+   ```
+   
+   Or manually:
+   
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
@@ -102,6 +112,7 @@ Download and run the standalone executable - no installation required!
 
 4. **Run the application:**
    ```bash
+   source .venv/bin/activate
    python main.py
    ```
 
