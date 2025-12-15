@@ -56,11 +56,28 @@ The script will detect the existing release and **upload the Windows asset** (`G
 **Result:**
 The GitHub release will contain both `GitToolSuite_Mac.zip` and `GitToolSuite.zip`. Uses on both platforms will get the correct download link from `version.json`.
 
-**That's it!** The entire release is automated.
+### 3. CI/CD Automated Release (Recommended)
+   
+**The "One-Step" Method for Windows & Mac**
+   
+Simply create and push a tag. GitHub Actions will handle the rest.
+   
+```bash
+# 1. Update config.py with new version
+# 2. Commit changes
+git commit -am "Bump version to 3.5.0"
 
----
-
-## Other Commands
+# 3. Create and push tag
+git tag v3.5.0
+git push origin v3.5.0
+```
+   
+**What happens next?**
+1. GitHub Actions triggers the `Multi-Platform Release` workflow.
+2. It creates a release for `v3.5.0`.
+3. It spins up a Windows runner and a Mac runner in parallel.
+4. Each runner builds correct asset and uploads it to the release.
+5. Result: A single release with `GitToolSuite.zip` and `GitToolSuite_Mac.zip`.
 
 ### Build Only (No Release)
 
