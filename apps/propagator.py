@@ -720,6 +720,11 @@ class GitPropagatorApp:
         if from_origin:
             if not remote_branch:
                 return messagebox.showerror("Error", "Please select a remote branch.")
+            
+            # If names differ, do not set up remote tracking automatically
+            if name != remote_branch:
+                args.append("--no-track")
+                
             args.append(f"origin/{remote_branch}")
             
         try:

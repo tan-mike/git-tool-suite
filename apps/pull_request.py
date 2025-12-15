@@ -9,6 +9,7 @@ import webbrowser
 import subprocess
 import os
 import shutil
+import sys
 
 from config import Config
 from ai.gemini_client import GeminiClient
@@ -31,6 +32,30 @@ class PullRequestApp:
         self._check_gh_cli()
 
     def _check_gh_cli(self):
+        # 0. Check for custom path in preferences
+        custom_gh = self.prefs.get('gh_path', '').strip()
+        if custom_gh and os.path.exists(custom_gh):
+            # If it's a file (e.g. /path/to/gh), get directory
+            if os.path.isfile(custom_gh):
+                gh_dir = os.path.dirname(custom_gh)
+            else:
+                gh_dir = custom_gh
+            
+            # Prepend to PATH
+            os.environ["PATH"] = gh_dir + os.pathsep + os.environ["PATH"]
+            print(f"DEBUG: Using custom gh path: {gh_dir}")
+
+        # On macOS, GUI apps often don't inherit the shell PATH, so we manually check common locations
+        if sys.platform == 'darwin' and not shutil.which("gh"):
+            common_paths = ["/opt/homebrew/bin", "/usr/local/bin"]
+            for p in common_paths:
+                gh_path = os.path.join(p, "gh")
+                if os.path.exists(gh_path):
+                    # Found it! Add to PATH for this process so subprocess can find it
+                    os.environ["PATH"] += os.pathsep + p
+                    print(f"DEBUG: Found gh at {gh_path}, added to PATH")
+                    break
+
         if not shutil.which("gh"):
             for widget in self.main_frame.winfo_children():
                 widget.destroy()

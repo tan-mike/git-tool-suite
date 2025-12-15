@@ -22,6 +22,7 @@ class SettingsApp:
         self.prefs = Config.load_preferences()
         self.api_key_var = tk.StringVar(value=self.prefs.get('api_key', ''))
         self.product_key_var = tk.StringVar(value=self.prefs.get('product_key', ''))
+        self.gh_path_var = tk.StringVar(value=self.prefs.get('gh_path', ''))
         
         self.main_frame = ttk.Frame(self.parent, padding="20")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -73,7 +74,22 @@ class SettingsApp:
             
             ttk.Label(api_frame, text="Note: Provide your own Gemini API key, or use a Product Key.", font=("", 8, "italic")).pack(anchor=tk.W, pady=(5, 0))
         
-        # 2. Update Checker
+        # 2. GitHub CLI Configuration
+        gh_frame = ttk.LabelFrame(self.main_frame, text="GitHub CLI Configuration", padding="15")
+        gh_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        ttk.Label(gh_frame, text="Custom 'gh' Executable Path (Optional):").pack(anchor=tk.W)
+        
+        gh_entry_frame = ttk.Frame(gh_frame)
+        gh_entry_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Entry(gh_entry_frame, textvariable=self.gh_path_var, width=50).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(gh_entry_frame, text="Browse...", command=self.browse_gh_path).pack(side=tk.LEFT, padx=5)
+        ttk.Button(gh_entry_frame, text="Save Path", command=self.save_gh_path).pack(side=tk.LEFT)
+        
+        ttk.Label(gh_frame, text="Leave empty to use system PATH.", font=("", 8, "italic")).pack(anchor=tk.W, pady=(5, 0))
+
+        # 3. Update Checker
         update_frame = ttk.LabelFrame(self.main_frame, text="Software Update", padding="15")
         update_frame.pack(fill=tk.X, pady=(0, 20))
         
@@ -85,7 +101,7 @@ class SettingsApp:
         self.check_btn = ttk.Button(version_frame, text="Check for Updates", command=self.check_for_updates)
         self.check_btn.pack(side=tk.RIGHT)
         
-        # 3. About
+        # 4. About
         about_frame = ttk.LabelFrame(self.main_frame, text="About", padding="15")
         about_frame.pack(fill=tk.X)
         
@@ -107,6 +123,19 @@ class SettingsApp:
                 del self.prefs['api_key']
                 Config.save_preferences(self.prefs)
             messagebox.showinfo("Success", "API Key cleared.")
+
+    def browse_gh_path(self):
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(title="Select gh executable")
+        if path:
+            self.gh_path_var.set(path)
+            
+    def save_gh_path(self):
+        path = self.gh_path_var.get().strip()
+        # Allow saving empty path to clear it
+        self.prefs['gh_path'] = path
+        Config.save_preferences(self.prefs)
+        messagebox.showinfo("Success", "GitHub CLI path saved.\nPlease restart the application.")
     
     def activate_product(self):
         key = self.product_key_var.get().strip()
