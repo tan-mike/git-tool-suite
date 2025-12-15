@@ -31,7 +31,7 @@ def generate_version_json():
     with open(version_file, 'w') as f:
         json.dump(version_data, f, indent=2)
     
-    print(f"✓ Generated version.json for version {version}")
+    print(f"[OK] Generated version.json for version {version}")
     print(f"  Release URL: {version_data['release_url']}")
     print(f"  Download URL (Win): {version_data['download_url']}")
     print(f"  Download URL (Mac): {version_data['download_mac_url']}")
@@ -51,14 +51,16 @@ def check_prerequisites():
     
     missing = []
     for tool, description in tools.items():
-        if not shutil.which(tool):
-            print(f"✗ {description} - NOT FOUND")
-            missing.append(tool)
+        if shutil.which(tool):
+            print(f"[OK] {description}")
         else:
-            print(f"✓ {description}")
+            print(f"[ERR] {description} not found")
+            missing.append(tool)
     
     if missing:
-        print(f"\n❌ Missing required tools: {', '.join(missing)}")
+        print("[ERR] Missing prerequisites:")
+        for tool in missing:
+            print(f"  - {tool}")
         print("\nInstallation instructions:")
         if 'gh' in missing:
             print("  GitHub CLI: winget install GitHub.cli")
@@ -67,7 +69,7 @@ def check_prerequisites():
             print("  PyInstaller: pip install pyinstaller")
         return False
     
-    print("✓ All prerequisites met")
+    print("[OK] All prerequisites met")
     return True
 
 
@@ -85,19 +87,19 @@ def check_git_status():
         )
         
         if result.stdout.strip():
-            print("⚠ Warning: You have uncommitted changes:")
+            print("[WARN] Working directory is not clean. Uncommitted changes detected:")
             print(result.stdout)
             response = input("\nContinue anyway? (y/N): ")
             if response.lower() != 'y':
-                print("❌ Aborted")
+                print("[ERR] Aborted")
                 return False
         else:
-            print("✓ Working directory clean")
+            print("[OK] Working directory clean")
         
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Git error: {e}")
+        print(f"[ERR] Git error: {e}")
         return False
 
 
@@ -115,7 +117,7 @@ def check_version_not_released(version):
         )
         
         if result.stdout.strip():
-            print(f"⚠ Tag v{version} already exists locally (Continuing for multi-platform release)")
+            print(f"[WARN] Tag v{version} already exists locally (Continuing for multi-platform release)")
             # return False
         
         # Check remote tags
@@ -127,14 +129,14 @@ def check_version_not_released(version):
         )
         
         if result.stdout.strip():
-            print(f"⚠ Tag v{version} already exists on remote (Continuing for multi-platform release)")
+            print(f"[WARN] Tag v{version} already exists on remote (Continuing for multi-platform release)")
             # return False
         
-        print(f"✓ Version v{version} not yet released")
+        print(f"[OK] Version v{version} not yet released")
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"⚠ Warning: Could not check remote tags: {e}")
+        print(f"[WARN] Could not check remote tags: {e}")
         return True  # Continue anyway
 
 
@@ -191,7 +193,7 @@ def build_application():
         # print(result.stdout)
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Build failed: {e}")
+        print(f"[ERR] Build failed: {e}")
         print(e.stderr)
         return None, None
     
@@ -205,7 +207,7 @@ def build_application():
          exe_path = Path('dist/GitToolSuite')
 
     if not exe_path.exists():
-        print(f"❌ Build failed - executable not found at {exe_path}")
+        print(f"[ERR] Build failed - executable not found at {exe_path}")
         return None, None
     
     # Calculate size (folder size if .app)
@@ -214,7 +216,7 @@ def build_application():
     else:
          file_size = exe_path.stat().st_size / (1024 * 1024)  # MB
 
-    print(f"✓ Main application built: {exe_path} ({file_size:.2f} MB)")
+    print(f"[OK] Main application built: {exe_path} ({file_size:.2f} MB)")
 
     # Build updater
     updater_path = build_updater()
@@ -241,7 +243,7 @@ def build_updater():
         else:
              cmd.extend(['--onefile', '--console', '--name', 'updater', 'updater.py', '--clean'])
 
-        result = subprocess.run(
+        subprocess.run(
             cmd,
             check=True,
             capture_output=True,
@@ -256,14 +258,14 @@ def build_updater():
 
         if updater_path.exists():
             size_mb = updater_path.stat().st_size / (1024 * 1024)
-            print(f"✓ Updater built: {updater_path} ({size_mb:.2f} MB)")
+            print(f"[OK] Updater built: {updater_path} ({size_mb:.2f} MB)")
             return updater_path
         else:
-            print("❌ Updater build failed - exe not found")
+            print("[ERR] Updater build failed - exe not found")
             return None
             
     except subprocess.CalledProcessError as e:
-        print(f"❌ Updater build failed: {e}")
+        print(f"[ERR] Updater build failed: {e}")
         return None
 
 
@@ -323,7 +325,7 @@ GitHub: https://github.com/tan-mike/git-tool-suite
         zf.writestr('README.txt', readme)
     
     size_mb = bundle_path.stat().st_size / (1024 * 1024)
-    print(f"✓ Bundle created: {bundle_path} ({size_mb:.2f} MB)")
+    print(f"[OK] Bundle created: {bundle_path} ({size_mb:.2f} MB)")
     return bundle_path
 
 
@@ -340,7 +342,7 @@ def create_git_tag(version):
             ['git', 'tag', '-a', tag_name, '-m', f'Release {tag_name}'],
             check=True
         )
-        print(f"✓ Tag {tag_name} created locally")
+        print(f"[OK] Tag {tag_name} created locally")
         
         # Push tag
         print(f"Pushing tag to origin...")
@@ -348,17 +350,15 @@ def create_git_tag(version):
             ['git', 'push', 'origin', tag_name],
             check=True
         )
-        print(f"✓ Tag {tag_name} pushed to origin")
-        
-        return True
+        print(f"[OK] Tag {tag_name} pushed to origin")
         
         return True
         
     except subprocess.CalledProcessError as e:
         if "already exists" in e.stderr:
-             print(f"⚠ Tag already exists (expected for second platform)")
+             print(f"[WARN] Tag already exists (expected for second platform)")
              return True
-        print(f"❌ Failed to create/push tag: {e}")
+        print(f"[ERR] Failed to create/push tag: {e}")
         return False
 
 
@@ -410,13 +410,13 @@ No installation required!
         
         subprocess.run(cmd, check=True)
         
-        print(f"✓ Release v{version} updated/created successfully!")
+        print(f"[OK] Release v{version} updated/created successfully!")
         print(f"  View: https://github.com/tan-mike/git-tool-suite/releases/tag/{tag_name}")
         
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create/update GitHub release: {e}")
+        print(f"[ERR] Failed to create/update GitHub release: {e}")
         return False
 
 
