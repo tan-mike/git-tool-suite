@@ -436,7 +436,7 @@ def run_build_only():
     # Also create the bundle for testing
     bundle_path = create_release_bundle(Config.APP_VERSION, exe_path, updater_path)
     
-    print("\n✅ Build completed successfully!")
+    print("\n Build completed successfully!")
     print(f"   Bundle: {bundle_path}")
     return 0
 
@@ -475,7 +475,7 @@ def run_full_release():
     
     response = input(f"\nProceed with release v{version}? (yes/N): ")
     if response.lower() != 'yes':
-        print("❌ Release cancelled")
+        print("Release cancelled")
         return 1
     
     # Step 4: Generate version.json
@@ -501,7 +501,7 @@ def run_full_release():
     
     # Success!
     print("\n" + "="*60)
-    print("  ✅ RELEASE COMPLETE!")
+    print("  RELEASE COMPLETE!")
     print("="*60)
     print(f"\n  Version: {version}")
     print(f"  Bundle: {bundle_path}")
