@@ -84,28 +84,28 @@ def main():
         print("  2. Set environment variable: export GEMINI_API_KEY='your_key_here'")
         sys.exit(1)
     
-    print("✅ API key found")
+    print("[OK] API key found")
     print("Obfuscating API key...")
     parts = obfuscate_key(api_key)
     
     # Hash product key if provided
     product_key_hash = None
     if product_key:
-        print("✅ Product key found")
+        print("[OK] Product key found")
         print("Hashing product key...")
         product_key_hash = hashlib.sha256(product_key.strip().encode('utf-8')).hexdigest()
         print(f"   Hash: {product_key_hash[:16]}...")
     else:
-        print("⚠️  No PRODUCT_KEY in .env - building Standard Edition")
+        print("[WARN] No PRODUCT_KEY in .env - building Standard Edition")
     
     print("Injecting into config.py...")
     inject_into_config(*parts, product_key_hash=product_key_hash)
     
-    print("\n✅ Configuration successfully updated!")
+    print("\n[OK] Configuration successfully updated!")
     if product_key_hash:
-        print("   ✅ Limited Edition build (with product key protection)")
+        print("   [OK] Limited Edition build (with product key protection)")
     else:
-        print("   ⚠️  Standard Edition build (users provide own API key)")
+        print("   [WARN] Standard Edition build (users provide own API key)")
     
     print("\nNext steps:")
     print("  1. Build executable: python build_clean.ps1")
