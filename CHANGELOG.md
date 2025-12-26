@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.4] - 2025-12-26
+
+### Fixed
+
+- **UI Layout**: Fixed visibility issue for "Create Pull Request" and "View on GitHub" buttons on smaller screens by implementing a scrollable layout.
+
 ## [3.5.0] - 2025-12-11
 
 ### Added
