@@ -25,11 +25,55 @@ class PullRequestApp:
         self.prefs = Config.load_preferences()
         self.gemini_client = GeminiClient()
 
-        self.main_frame = ttk.Frame(self.parent, padding="10")
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        # Create a container frame for the canvas and scrollbar
+        self.container = ttk.Frame(self.parent)
+        self.container.pack(fill=tk.BOTH, expand=True)
+
+        # Create canvas and scrollbar
+        self.canvas = tk.Canvas(self.container)
+        self.scrollbar = ttk.Scrollbar(self.container, orient="vertical", command=self.canvas.yview)
+        
+        # Configure scrollbar
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Pack them
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Create a frame inside the canvas to hold the actual content
+        self.main_frame = ttk.Frame(self.canvas, padding="10")
+        
+        # Create a window in the canvas that contains the main_frame
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.main_frame, anchor="nw")
+        
+        # Bind events for resizing and scrolling
+        self.main_frame.bind("<Configure>", self._on_frame_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.parent.bind_all("<MouseWheel>", self._on_mousewheel)  # Windows/MacOS (?)
         
         self.build_ui()
         self._check_gh_cli()
+
+    def _on_frame_configure(self, event=None):
+        """Reset the scroll region to encompass the inner frame"""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        """Resize the inner frame to match the canvas width"""
+        canvas_width = event.width
+        self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+
+    def _on_mousewheel(self, event):
+        """Enable mousewheel scrolling"""
+        # Determine scroll direction (platforms vary)
+        if self.parent.winfo_containing(event.x_root, event.y_root) == self.log_text:
+             # Don't scroll main canvas if hovering over the log text
+             return
+
+        if sys.platform == "darwin":
+             self.canvas.yview_scroll(int(-1*(event.delta)), "units")
+        else:
+             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def _check_gh_cli(self):
         # 0. Check for custom path in preferences
