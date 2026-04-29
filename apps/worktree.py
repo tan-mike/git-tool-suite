@@ -4,7 +4,7 @@ Allows managing parallel Git worktrees with automatic environment setup.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import threading
 import datetime
 import os
@@ -94,6 +94,8 @@ class WorktreeManagerApp:
         ttk.Label(create_frame, text="Branch:").grid(row=0, column=0, sticky=tk.W)
         self.branch_combo = ttk.Combobox(create_frame)
         self.branch_combo.grid(row=0, column=1, sticky="ew", padx=5)
+        self.branch_combo.bind("<<ComboboxSelected>>", lambda e: self._update_path_preview())
+        self.branch_combo.bind("<KeyRelease>", lambda e: self._update_path_preview())
         create_frame.columnconfigure(1, weight=1)
         
         self.create_new_branch_var = tk.BooleanVar()
@@ -104,10 +106,50 @@ class WorktreeManagerApp:
         
         ttk.Button(create_frame, text="Create Worktree", command=self.create_worktree).grid(row=3, column=1, sticky=tk.E)
 
-        # 2. Setup Profile Section (Placeholder for Task 7)
+        # 2. Setup Profile Section
         profile_frame = ttk.LabelFrame(right_panel, text="Setup Profile", padding="10")
         profile_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        ttk.Label(profile_frame, text="Environment setup options will appear here...").pack()
+        
+        # Base Path & Editor
+        settings_frame = ttk.Frame(profile_frame)
+        settings_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(settings_frame, text="Worktree Base Path:").grid(row=0, column=0, sticky=tk.W)
+        self.base_path_var = tk.StringVar(value=self.base_path)
+        ttk.Entry(settings_frame, textvariable=self.base_path_var).grid(row=0, column=1, sticky="ew", padx=5)
+        
+        ttk.Label(settings_frame, text="Editor Command:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.editor_var = tk.StringVar(value=self.editor_command)
+        ttk.Entry(settings_frame, textvariable=self.editor_var).grid(row=1, column=1, sticky="ew", padx=5)
+        settings_frame.columnconfigure(1, weight=1)
+
+        # Lists for Profile
+        list_container = ttk.Frame(profile_frame)
+        list_container.pack(fill=tk.BOTH, expand=True)
+        list_container.columnconfigure((0, 1, 2), weight=1)
+        list_container.rowconfigure(1, weight=1)
+
+        def create_list_section(parent, column, title, listbox_attr):
+            ttk.Label(parent, text=title).grid(row=0, column=column, sticky=tk.W)
+            frame = ttk.Frame(parent)
+            frame.grid(row=1, column=column, sticky="nsew", padx=2)
+            
+            lb = tk.Listbox(frame, height=6)
+            lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            setattr(self, listbox_attr, lb)
+            
+            btn_frame = ttk.Frame(frame)
+            btn_frame.pack(side=tk.RIGHT, fill=tk.Y)
+            ttk.Button(btn_frame, text="+", width=2, command=lambda: self._add_list_item(lb, f"Add {title}", "Value:")).pack()
+            ttk.Button(btn_frame, text="-", width=2, command=lambda: self._remove_list_item(lb)).pack()
+            ttk.Button(btn_frame, text="↑", width=2, command=lambda: self._move_list_item(lb, -1)).pack()
+            ttk.Button(btn_frame, text="↓", width=2, command=lambda: self._move_list_item(lb, 1)).pack()
+
+        create_list_section(list_container, 0, "Files to Copy", "copy_files_lb")
+        create_list_section(list_container, 1, "Install Cmds", "install_cmds_lb")
+        create_list_section(list_container, 2, "Post-Setup Cmds", "post_cmds_lb")
+
+        ttk.Button(profile_frame, text="Save Profile & Settings", command=self.save_profile).pack(anchor=tk.E, pady=(10, 0))
 
         # 3. Log Section
         log_frame = ttk.LabelFrame(right_panel, text="Operation Log", padding="10")
@@ -212,9 +254,7 @@ class WorktreeManagerApp:
         if repo_path != self.selected_repo:
             self.selected_repo = repo_path
             self._load_branches_for_repo(repo_path)
-            # load_profile_for_repo will be implemented in Task 7
-            if hasattr(self, 'load_profile_for_repo'):
-                self.load_profile_for_repo(repo_path)
+            self.load_profile_for_repo(repo_path)
         
         self._update_path_preview()
 
@@ -299,9 +339,6 @@ class WorktreeManagerApp:
         if worktree_path.exists():
             messagebox.showerror("Path Exists", f"Worktree path already exists:\n{worktree_path}")
             return
-        
-        # Disable button during creation
-        # (Actually, we'll just log and rely on the user seeing progress)
         
         threading.Thread(
             target=self._create_worktree_worker,
@@ -447,3 +484,55 @@ class WorktreeManagerApp:
             self.log_message(f"✓ Opened in editor: {path}")
         except Exception as e:
             self.log_message(f"✗ Failed to open editor: {e}")
+
+    # --- Profile Helpers ---
+    def _add_list_item(self, listbox, prompt_title, prompt_text):
+        value = simpledialog.askstring(prompt_title, prompt_text, parent=self.parent)
+        if value and value.strip():
+            listbox.insert(tk.END, value.strip())
+
+    def _remove_list_item(self, listbox):
+        selected = listbox.curselection()
+        if selected:
+            listbox.delete(selected[0])
+
+    def _move_list_item(self, listbox, direction):
+        selected = listbox.curselection()
+        if not selected:
+            return
+        idx = selected[0]
+        new_idx = idx + direction
+        if 0 <= new_idx < listbox.size():
+            item = listbox.get(idx)
+            listbox.delete(idx)
+            listbox.insert(new_idx, item)
+            listbox.selection_set(new_idx)
+
+    def save_profile(self):
+        # Global settings
+        self.base_path = self.base_path_var.get().strip()
+        self.editor_command = self.editor_var.get().strip()
+        
+        # Repo specific profile
+        if self.selected_repo:
+            profile = {
+                "copy_files": list(self.copy_files_lb.get(0, tk.END)),
+                "install_commands": list(self.install_cmds_lb.get(0, tk.END)),
+                "post_commands": list(self.post_cmds_lb.get(0, tk.END)),
+            }
+            self.profiles[self.selected_repo] = profile
+            
+        self.save_configuration()
+        self.log_message("✓ Settings and profile saved.")
+
+    def load_profile_for_repo(self, repo_path):
+        profile = self.profiles.get(repo_path, {})
+        # Clear and populate each listbox
+        for listbox, key in [
+            (self.copy_files_lb, "copy_files"),
+            (self.install_cmds_lb, "install_commands"),
+            (self.post_cmds_lb, "post_commands"),
+        ]:
+            listbox.delete(0, tk.END)
+            for item in profile.get(key, []):
+                listbox.insert(tk.END, item)
