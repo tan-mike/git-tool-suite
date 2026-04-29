@@ -28,6 +28,7 @@ from apps.cleanup import BranchCleanerApp
 from apps.pull_request import PullRequestApp
 from apps.commit_generator import CommitGeneratorApp
 from apps.branch_refresh import BranchRefreshApp
+from apps.worktree import WorktreeManagerApp
 from apps.settings import SettingsApp
 from ai.gemini_client import GeminiClient
 from config import Config
@@ -93,6 +94,7 @@ class GitToolsSuiteApp:
         tab_pr_creator = ttk.Frame(self.notebook)
         tab_commit = ttk.Frame(self.notebook)
         tab_branch_refresh = ttk.Frame(self.notebook)
+        tab_worktree = ttk.Frame(self.notebook)
         tab_settings = ttk.Frame(self.notebook)
         
         self.notebook.add(tab_propagator, text='Commit Propagator')
@@ -100,6 +102,7 @@ class GitToolsSuiteApp:
         self.notebook.add(tab_pr_creator, text='Create Pull Request')
         self.notebook.add(tab_commit, text='Commit Tool')
         self.notebook.add(tab_branch_refresh, text='Branch Refresh')
+        self.notebook.add(tab_worktree, text='Worktree Manager')
         self.notebook.add(tab_settings, text='Settings')
         self.notebook.pack(expand=True, fill="both", pady=(0, 5))
 
@@ -109,9 +112,19 @@ class GitToolsSuiteApp:
         self.pr_app = PullRequestApp(tab_pr_creator)
         self.commit_app = CommitGeneratorApp(tab_commit)
         self.branch_refresh_app = BranchRefreshApp(tab_branch_refresh)
+        self.worktree_app = WorktreeManagerApp(tab_worktree)
         self.settings_app = SettingsApp(tab_settings)
+        self.settings_tab = tab_settings # Store for reference
 
-        self.tab_apps = [self.propagator_app, self.cleanup_app, self.pr_app, self.commit_app, self.branch_refresh_app, self.settings_app]
+        self.tab_apps = [
+            self.propagator_app, 
+            self.cleanup_app, 
+            self.pr_app, 
+            self.commit_app, 
+            self.branch_refresh_app, 
+            self.worktree_app,
+            self.settings_app
+        ]
 
         if not self.gemini_client:
             self.joke_button.config(state=tk.DISABLED)
@@ -302,7 +315,7 @@ class GitToolsSuiteApp:
         
         if response:
             # Switch to settings tab and trigger update check
-            self.notebook.select(4)  # Settings tab is index 4
+            self.notebook.select(self.settings_tab)
             # Let the SettingsApp handle the automatic update flow
             self.settings_app.check_for_updates()
 
