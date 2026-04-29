@@ -393,7 +393,57 @@ class WorktreeManagerApp:
         except Exception as e:
             self.log_message(f"    ✗ Error: {e}")
 
-    # --- Placeholders for remaining actions ---
-    def remove_selected_worktree(self): pass
-    def open_in_file_manager(self): pass
-    def open_in_editor(self): pass
+    def remove_selected_worktree(self):
+        path = self._get_selected_worktree_path()
+        if not path:
+            messagebox.showwarning("No Selection", "Select a worktree to remove.")
+            return
+            
+        # Get parent repo path
+        selected = self.repo_tree.selection()[0]
+        parent = self.repo_tree.parent(selected)
+        repo_path = self.repo_tree.item(parent, "text")
+        
+        if messagebox.askyesno("Confirm", f"Remove worktree?\n\n{path}"):
+            try:
+                remove_worktree(repo_path, path)
+                self.log_message(f"✓ Removed worktree: {path}")
+                self.update_repo_tree()
+            except Exception as e:
+                if messagebox.askyesno("Force Remove?", f"Normal removal failed:\n{e}\n\nForce remove?"):
+                    try:
+                        remove_worktree(repo_path, path, force=True)
+                        self.log_message(f"✓ Force removed: {path}")
+                        self.update_repo_tree()
+                    except Exception as e2:
+                        self.log_message(f"✗ Force remove failed: {e2}")
+
+    def open_in_file_manager(self):
+        path = self._get_selected_worktree_path()
+        if not path:
+            return
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as e:
+            self.log_message(f"✗ Failed to open file manager: {e}")
+
+    def open_in_editor(self):
+        path = self._get_selected_worktree_path()
+        if not path:
+            return
+            
+        editor = self.editor_command
+        if not editor:
+            messagebox.showinfo("No Editor", "Set an editor command in the Setup Profile first.")
+            return
+            
+        try:
+            subprocess.Popen([editor, path])
+            self.log_message(f"✓ Opened in editor: {path}")
+        except Exception as e:
+            self.log_message(f"✗ Failed to open editor: {e}")
