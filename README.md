@@ -1,6 +1,6 @@
-# Git Tools Suite v3.5
+# Git Tools Suite v3.6
 
-A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, AI-powered commit generation, and automated branch synchronization.
+A comprehensive desktop application for Git productivity, featuring commit propagation, branch cleanup, pull request creation, AI-powered commit generation, and automated worktree management.
 
 ## Features
 
@@ -54,7 +54,15 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - **Optimized performance** - instant loading even with 100+ branches
 - Detailed operation logging
 
-### 6. AI Features (Optional)
+### 6. Worktree Manager (NEW v3.6)
+
+- Manage parallel Git worktrees with automated environment setup.
+- **Environment Automation**: Setup profiles for copying files (like `.env`) and running install commands (`npm install`, etc.).
+- Integrated Editor support: Launch your IDE directly from the tool.
+- Hierarchical view of repositories and active worktrees.
+- Cross-platform support (Mac, Linux, Windows).
+
+### 7. AI Features (Optional)
 
 - Commit message generation
 - PR title/description generation
@@ -62,7 +70,7 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Joke generator powered by Google Gemini
 - Birthday messages (December 12th)
 
-### 7. Automatic Updates
+### 8. Automatic Updates
 
 - Check for updates from Settings tab
 - **One-click auto-update** for executable builds
@@ -70,7 +78,7 @@ A comprehensive desktop application for Git productivity, featuring commit propa
 - Seamless restart after update
 - Manual download option available
 
-### 8. Responsive UI (NEW v3.4)
+### 9. Responsive UI (NEW v3.4)
 
 - **Auto-adapting window size** based on screen resolution
 - Taskbar-aware positioning (Windows)
