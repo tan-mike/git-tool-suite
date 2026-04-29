@@ -31,7 +31,7 @@ class Config:
 
     # Product Key Hash (will be replaced by build script)
     # This is the SHA-256 hash of the actual product key from .env
-    _PRODUCT_KEY_HASH = "PLACEHOLDER_PRODUCT_KEY_HASH"
+    _PRODUCT_KEY_HASH = "2f08cd79dd44a90d9b77925ccc1389184933bea62b06752c7855f13187447415"
 
     @staticmethod
     def get_api_key():
@@ -159,6 +159,11 @@ class Config:
                 "tracked_repos": {},  # Dict: {"/path/to/repo": ["branch1", "branch2"]}
                 "refresh_interval_hours": 24,
                 "auto_refresh_enabled": False
+            },
+            "worktree": {
+                "base_path": "~/worktrees",
+                "editor_command": "",
+                "profiles": {}
             }
         }
     
