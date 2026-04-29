@@ -123,13 +123,164 @@ class WorktreeManagerApp:
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
 
-    # --- Placeholders for subsequent tasks ---
-    def add_repository(self): pass
-    def remove_repository(self): pass
-    def update_repo_tree(self): pass
-    def on_tree_select(self, event): pass
+    def add_repository(self):
+        from tkinter import filedialog
+        path = filedialog.askdirectory(title="Select Git Repository")
+        if not path:
+            return
+            
+        try:
+            # Validate it's a git repo
+            run_git_command("rev-parse --git-dir", path)
+            
+            if path in self.profiles:
+                messagebox.showinfo("Info", "Repository already tracked.")
+                return
+                
+            # Add to profiles with empty setup
+            self.profiles[path] = {
+                "copy_files": [],
+                "install_commands": [],
+                "post_commands": []
+            }
+            self.save_configuration()
+            self.update_repo_tree()
+            self.log_message(f"Added repository: {path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Invalid Git repository:\n{e}")
+
+    def remove_repository(self):
+        selected = self.repo_tree.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Select a repository to remove.")
+            return
+            
+        item = selected[0]
+        # If a worktree is selected, get its parent (the repo)
+        parent = self.repo_tree.parent(item)
+        repo_item = parent if parent else item
+        repo_path = self.repo_tree.item(repo_item, "text")
+        
+        if messagebox.askyesno("Confirm", f"Stop tracking repository?\n\n{repo_path}"):
+            if repo_path in self.profiles:
+                del self.profiles[repo_path]
+                self.save_configuration()
+                self.update_repo_tree()
+                self.log_message(f"Removed repository: {repo_path}")
+                if self.selected_repo == repo_path:
+                    self.selected_repo = None
+                    self.branch_combo.set("")
+                    self.branch_combo['values'] = []
+
+    def update_repo_tree(self):
+        # Clear tree
+        for item in self.repo_tree.get_children():
+            self.repo_tree.delete(item)
+            
+        prefs = Config.load_preferences()
+        self.profiles = prefs.get("worktree", {}).get("profiles", {})
+        
+        for repo_path in self.profiles.keys():
+            try:
+                repo_node = self.repo_tree.insert("", tk.END, text=repo_path, open=True)
+                worktrees = list_worktrees(repo_path)
+                
+                for wt in worktrees:
+                    # Skip the main worktree (it's the repo_path itself)
+                    if Path(wt['path']).resolve() == Path(repo_path).resolve():
+                        continue
+                    
+                    display_text = f"{wt['branch']} → {wt['path']}"
+                    self.repo_tree.insert(repo_node, tk.END, text=display_text)
+            except Exception as e:
+                self.repo_tree.insert("", tk.END, text=f"Error loading {repo_path}: {e}")
+
+    def on_tree_select(self, event):
+        selected = self.repo_tree.selection()
+        if not selected:
+            return
+            
+        item = selected[0]
+        parent = self.repo_tree.parent(item)
+        
+        # Determine repo path
+        if parent: # Worktree selected
+            repo_path = self.repo_tree.item(parent, "text")
+        else: # Repo selected
+            repo_path = self.repo_tree.item(item, "text")
+            
+        if repo_path != self.selected_repo:
+            self.selected_repo = repo_path
+            self._load_branches_for_repo(repo_path)
+            # load_profile_for_repo will be implemented in Task 7
+            if hasattr(self, 'load_profile_for_repo'):
+                self.load_profile_for_repo(repo_path)
+        
+        self._update_path_preview()
+
+    def _load_branches_for_repo(self, repo_path):
+        try:
+            local_branches = get_branches(repo_path)
+            
+            # Also get remote branches
+            remote_output = run_git_command("branch -r", repo_path)
+            remote_branches = []
+            for line in remote_output.splitlines():
+                branch = line.strip()
+                if " -> " in branch: continue # Skip HEAD -> ...
+                # strip origin/
+                if "/" in branch:
+                    branch = branch.split("/", 1)[1]
+                remote_branches.append(branch)
+            
+            all_branches = sorted(list(set(local_branches + remote_branches)))
+            self.branch_combo['values'] = all_branches
+            
+            current = run_git_command("rev-parse --abbrev-ref HEAD", repo_path)
+            self.branch_combo.set(current)
+        except Exception as e:
+            self.log_message(f"Error loading branches: {e}")
+
+    def _update_path_preview(self):
+        if not self.selected_repo:
+            self.path_preview_label.config(text="Path: Select a repo...")
+            return
+            
+        branch = self.branch_combo.get().strip()
+        if not branch:
+            self.path_preview_label.config(text="Path: Select a branch...")
+            return
+            
+        repo_name = Path(self.selected_repo).name
+        base = Path(self.base_path).expanduser()
+        worktree_path = base / repo_name / branch.replace("/", "-")
+        self.path_preview_label.config(text=f"Path: {worktree_path}")
+
+    def _get_selected_worktree_path(self):
+        """Get the filesystem path of the currently selected worktree."""
+        selected = self.repo_tree.selection()
+        if not selected:
+            return None
+        item = selected[0]
+        if not self.repo_tree.parent(item):
+            return None  # It's a repo, not a worktree
+        text = self.repo_tree.item(item, "text")
+        if " → " in text:
+            return text.split(" → ")[-1].strip()
+        return None
+
+    def prune_selected(self):
+        if not self.selected_repo:
+            return
+        try:
+            prune_worktrees(self.selected_repo)
+            self.log_message(f"Pruned worktrees for {self.selected_repo}")
+            self.update_repo_tree()
+        except Exception as e:
+            self.log_message(f"Prune failed: {e}")
+
+    # --- Placeholders for remaining actions ---
     def remove_selected_worktree(self): pass
     def open_in_file_manager(self): pass
     def open_in_editor(self): pass
-    def prune_selected(self): pass
     def create_worktree(self): pass
