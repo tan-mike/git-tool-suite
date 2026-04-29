@@ -279,8 +279,121 @@ class WorktreeManagerApp:
         except Exception as e:
             self.log_message(f"Prune failed: {e}")
 
+    def create_worktree(self):
+        if not self.selected_repo:
+            messagebox.showwarning("No Repository", "Select a repository first.")
+            return
+        
+        branch = self.branch_combo.get().strip()
+        if not branch:
+            messagebox.showwarning("No Branch", "Enter or select a branch name.")
+            return
+        
+        create_new = self.create_new_branch_var.get()
+        
+        # Compute worktree path
+        repo_name = Path(self.selected_repo).name
+        base = Path(self.base_path).expanduser()
+        worktree_path = base / repo_name / branch.replace("/", "-")
+        
+        if worktree_path.exists():
+            messagebox.showerror("Path Exists", f"Worktree path already exists:\n{worktree_path}")
+            return
+        
+        # Disable button during creation
+        # (Actually, we'll just log and rely on the user seeing progress)
+        
+        threading.Thread(
+            target=self._create_worktree_worker,
+            args=(self.selected_repo, str(worktree_path), branch, create_new),
+            daemon=True
+        ).start()
+
+    def _create_worktree_worker(self, repo_path, worktree_path, branch, create_new):
+        self.log_message(f"=== Creating worktree: {branch} ===")
+        import shutil
+        
+        # Step 1: git worktree add
+        try:
+            self.log_message(f"Creating worktree at: {worktree_path}")
+            add_worktree(repo_path, worktree_path, branch, create_branch=create_new)
+            self.log_message("  ✓ Worktree created")
+        except Exception as e:
+            self.log_message(f"  ✗ Failed to create worktree: {e}")
+            return
+        
+        # Step 2: Copy files
+        profile = self.profiles.get(repo_path, {})
+        for rel_path in profile.get("copy_files", []):
+            src = Path(repo_path) / rel_path
+            dst = Path(worktree_path) / rel_path
+            try:
+                if src.exists():
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(src), str(dst))
+                    self.log_message(f"  ✓ Copied: {rel_path}")
+                else:
+                    self.log_message(f"  ⚠ Source file not found: {rel_path}")
+            except Exception as e:
+                self.log_message(f"  ✗ Failed to copy {rel_path}: {e}")
+        
+        # Step 3: Run install commands
+        for cmd in profile.get("install_commands", []):
+            self._run_setup_command(cmd, worktree_path)
+        
+        # Step 4: Run post-setup commands
+        for cmd in profile.get("post_commands", []):
+            self._run_setup_command(cmd, worktree_path)
+        
+        # Step 5: Open in editor
+        editor = self.editor_command
+        if editor:
+            try:
+                import subprocess
+                subprocess.Popen([editor, worktree_path])
+                self.log_message(f"  ✓ Opened in: {editor}")
+            except Exception as e:
+                self.log_message(f"  ✗ Failed to open editor: {e}")
+        
+        # Refresh tree
+        self.parent.after(0, self.update_repo_tree)
+        self.log_message("=== Worktree creation complete ===")
+
+    def _run_setup_command(self, cmd, cwd):
+        """Run a setup command cross-platform."""
+        import subprocess
+        import shlex
+        self.log_message(f"  Running: {cmd}")
+        try:
+            creation_flags = 0
+            if sys.platform == 'win32':
+                creation_flags = subprocess.CREATE_NO_WINDOW
+                # Windows: use shell=True for commands like "npm install"
+                process = subprocess.run(
+                    cmd, cwd=cwd, shell=True,
+                    capture_output=True, text=True, timeout=300,
+                    creationflags=creation_flags
+                )
+            else:
+                # Mac/Linux: split command properly
+                process = subprocess.run(
+                    shlex.split(cmd), cwd=cwd,
+                    capture_output=True, text=True, timeout=300
+                )
+            
+            if process.returncode == 0:
+                self.log_message(f"    ✓ Success")
+            else:
+                self.log_message(f"    ✗ Exit code {process.returncode}")
+                if process.stderr:
+                    for line in process.stderr.strip().splitlines()[:3]:
+                        self.log_message(f"      {line}")
+        except subprocess.TimeoutExpired:
+            self.log_message(f"    ✗ Timed out after 300s")
+        except Exception as e:
+            self.log_message(f"    ✗ Error: {e}")
+
     # --- Placeholders for remaining actions ---
     def remove_selected_worktree(self): pass
     def open_in_file_manager(self): pass
     def open_in_editor(self): pass
-    def create_worktree(self): pass
