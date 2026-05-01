@@ -24,6 +24,36 @@ from utils.git_utils import (
     get_branches
 )
 
+def apply_env_overrides(env_path, branch, overrides):
+    """Update or append environment variables in a .env file."""
+    if not env_path.exists():
+        return
+        
+    try:
+        content = env_path.read_text()
+        lines = content.splitlines()
+        
+        for override in overrides:
+            if "=" not in override:
+                continue
+            key, val = override.split("=", 1)
+            key = key.strip()
+            val = val.strip().replace("${branch}", branch)
+            
+            replaced = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f"{key}="):
+                    lines[i] = f"{key}={val}"
+                    replaced = True
+                    break
+            
+            if not replaced:
+                lines.append(f"{key}={val}")
+                
+        env_path.write_text("\n".join(lines) + "\n")
+    except Exception as e:
+        print(f"Failed to apply env overrides: {e}")
+
 class WorktreeManagerApp:
     def __init__(self, parent):
         self.parent = parent
