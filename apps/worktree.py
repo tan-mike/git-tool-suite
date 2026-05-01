@@ -4,12 +4,14 @@ Allows managing parallel Git worktrees with automatic environment setup.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, simpledialog
+from tkinter import ttk, messagebox, scrolledtext, simpledialog, filedialog
 import threading
+import shutil
 import datetime
 import os
 import sys
 import shlex
+import subprocess
 from pathlib import Path
 
 from config import Config
@@ -101,7 +103,7 @@ class WorktreeManagerApp:
         self.create_new_branch_var = tk.BooleanVar()
         ttk.Checkbutton(create_frame, text="Create new branch", variable=self.create_new_branch_var).grid(row=1, column=1, sticky=tk.W, pady=5)
         
-        self.path_preview_label = ttk.Label(create_frame, text="Path: Select a repo...", font=("", 8, "italic"), foreground="gray")
+        self.path_preview_label = ttk.Label(create_frame, text="Path: Select a repo...", font=("", 9, "italic"))
         self.path_preview_label.grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=5)
         
         ttk.Button(create_frame, text="Create Worktree", command=self.create_worktree).grid(row=3, column=1, sticky=tk.E)
@@ -155,7 +157,7 @@ class WorktreeManagerApp:
         log_frame = ttk.LabelFrame(right_panel, text="Operation Log", padding="10")
         log_frame.pack(fill=tk.X)
         
-        self.log_text = scrolledtext.ScrolledText(log_frame, height=8, state=tk.DISABLED, font=("Courier", 9))
+        self.log_text = scrolledtext.ScrolledText(log_frame, height=8, state=tk.DISABLED)
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
     def log_message(self, message):
@@ -166,7 +168,6 @@ class WorktreeManagerApp:
         self.log_text.config(state=tk.DISABLED)
 
     def add_repository(self):
-        from tkinter import filedialog
         path = filedialog.askdirectory(title="Select Git Repository")
         if not path:
             return
@@ -348,7 +349,6 @@ class WorktreeManagerApp:
 
     def _create_worktree_worker(self, repo_path, worktree_path, branch, create_new):
         self.log_message(f"=== Creating worktree: {branch} ===")
-        import shutil
         
         # Step 1: git worktree add
         try:
@@ -386,8 +386,14 @@ class WorktreeManagerApp:
         editor = self.editor_command
         if editor:
             try:
-                import subprocess
-                subprocess.Popen([editor, worktree_path])
+                import shlex
+                # Use shell=True to support aliases and commands with arguments (like "code -n")
+                if sys.platform == 'win32':
+                    cmd = f'{editor} "{worktree_path}"'
+                else:
+                    cmd = f'{editor} {shlex.quote(str(worktree_path))}'
+                
+                subprocess.Popen(cmd, shell=True)
                 self.log_message(f"  ✓ Opened in: {editor}")
             except Exception as e:
                 self.log_message(f"  ✗ Failed to open editor: {e}")
@@ -398,7 +404,6 @@ class WorktreeManagerApp:
 
     def _run_setup_command(self, cmd, cwd):
         """Run a setup command cross-platform."""
-        import subprocess
         import shlex
         self.log_message(f"  Running: {cmd}")
         try:
@@ -480,7 +485,13 @@ class WorktreeManagerApp:
             return
             
         try:
-            subprocess.Popen([editor, path])
+            import shlex
+            if sys.platform == 'win32':
+                cmd = f'{editor} "{path}"'
+            else:
+                cmd = f'{editor} {shlex.quote(str(path))}'
+                
+            subprocess.Popen(cmd, shell=True)
             self.log_message(f"✓ Opened in editor: {path}")
         except Exception as e:
             self.log_message(f"✗ Failed to open editor: {e}")

@@ -89,7 +89,14 @@ class SettingsApp:
         
         ttk.Label(gh_frame, text="Leave empty to use system PATH.", font=("", 8, "italic")).pack(anchor=tk.W, pady=(5, 0))
 
-        # 3. Update Checker
+        # 3. UI Theme
+        theme_frame = ttk.LabelFrame(self.main_frame, text="UI Theme", padding="15")
+        theme_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        ttk.Label(theme_frame, text="Switch between Dark and Light mode:").pack(anchor=tk.W, pady=(0, 5))
+        ttk.Button(theme_frame, text="Toggle Theme", command=self.toggle_theme).pack(anchor=tk.W)
+
+        # 4. Update Checker
         update_frame = ttk.LabelFrame(self.main_frame, text="Software Update", padding="15")
         update_frame.pack(fill=tk.X, pady=(0, 20))
         
@@ -240,6 +247,20 @@ class SettingsApp:
                     webbrowser.open(release_url)
         else:
             messagebox.showinfo("Up to Date", f"You are running the latest version ({current}).")
+            
+    def toggle_theme(self):
+        try:
+            import sv_ttk
+            sv_ttk.toggle_theme()
+            
+            # Save preference
+            current_theme = sv_ttk.get_theme()
+            prefs = Config.load_preferences()
+            prefs["theme"] = current_theme
+            Config.save_preferences(prefs)
+            
+        except Exception as e:
+            messagebox.showerror("Theme Error", f"Failed to toggle theme: {e}")
     
     def _download_and_install_update(self, download_url):
         """Download and install the update automatically with progress tracking."""

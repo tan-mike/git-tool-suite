@@ -21,6 +21,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import threading
 import datetime
+import sv_ttk
 
 # Import our modular components
 from apps.propagator import GitPropagatorApp
@@ -43,6 +44,19 @@ class GitToolsSuiteApp:
         else:
             title = f"Git Productivity Tools Suite Ver: {Config.APP_VERSION}"
         self.root.title(title)
+        
+        # Initialize modern theme
+        prefs = Config.load_preferences()
+        theme = prefs.get("theme", "dark")
+        try:
+            import sv_ttk
+            sv_ttk.set_theme(theme)
+            
+            # sv_ttk can sometimes make Treeviews too tall. Apply a modest row height.
+            style = ttk.Style()
+            style.configure("Treeview", rowheight=28)
+        except Exception as e:
+            print(f"Warning: Could not set theme: {e}")
         
         # Get screen dimensions
         screen_width = self.root.winfo_screenwidth()

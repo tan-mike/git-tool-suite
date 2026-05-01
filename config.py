@@ -141,6 +141,7 @@ class Config:
         
         # Return default preferences
         return {
+            "theme": "dark",
             "last_repo_path": "",
             "product_key": "",
             "propagator": {
