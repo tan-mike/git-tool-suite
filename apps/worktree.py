@@ -158,7 +158,7 @@ class WorktreeManagerApp:
         # Lists for Profile
         list_container = ttk.Frame(profile_frame)
         list_container.pack(fill=tk.BOTH, expand=True)
-        list_container.columnconfigure((0, 1, 2), weight=1)
+        list_container.columnconfigure((0, 1, 2, 3), weight=1)
         list_container.rowconfigure(1, weight=1)
 
         def create_list_section(parent, column, title, listbox_attr):
@@ -178,8 +178,9 @@ class WorktreeManagerApp:
             ttk.Button(btn_frame, text="↓", width=2, command=lambda: self._move_list_item(lb, 1)).pack()
 
         create_list_section(list_container, 0, "Files to Copy", "copy_files_lb")
-        create_list_section(list_container, 1, "Install Cmds", "install_cmds_lb")
-        create_list_section(list_container, 2, "Post-Setup Cmds", "post_cmds_lb")
+        create_list_section(list_container, 1, "Env Overrides", "env_overrides_lb")
+        create_list_section(list_container, 2, "Install Cmds", "install_cmds_lb")
+        create_list_section(list_container, 3, "Post-Setup Cmds", "post_cmds_lb")
 
         ttk.Button(profile_frame, text="Save Profile & Settings", command=self.save_profile).pack(anchor=tk.E, pady=(10, 0))
 
@@ -213,6 +214,7 @@ class WorktreeManagerApp:
             # Add to profiles with empty setup
             self.profiles[path] = {
                 "copy_files": [],
+                "env_overrides": [],
                 "install_commands": [],
                 "post_commands": []
             }
@@ -404,6 +406,14 @@ class WorktreeManagerApp:
             except Exception as e:
                 self.log_message(f"  ✗ Failed to copy {rel_path}: {e}")
         
+        # Step 2.5: Apply env overrides
+        env_overrides = profile.get("env_overrides", [])
+        if env_overrides:
+            env_path = Path(worktree_path) / ".env"
+            if env_path.exists():
+                apply_env_overrides(env_path, branch, env_overrides)
+                self.log_message(f"  ✓ Applied env overrides")
+        
         # Step 3: Run install commands
         for cmd in profile.get("install_commands", []):
             self._run_setup_command(cmd, worktree_path)
@@ -558,6 +568,7 @@ class WorktreeManagerApp:
         if self.selected_repo:
             profile = {
                 "copy_files": list(self.copy_files_lb.get(0, tk.END)),
+                "env_overrides": list(self.env_overrides_lb.get(0, tk.END)),
                 "install_commands": list(self.install_cmds_lb.get(0, tk.END)),
                 "post_commands": list(self.post_cmds_lb.get(0, tk.END)),
             }
@@ -571,6 +582,7 @@ class WorktreeManagerApp:
         # Clear and populate each listbox
         for listbox, key in [
             (self.copy_files_lb, "copy_files"),
+            (self.env_overrides_lb, "env_overrides"),
             (self.install_cmds_lb, "install_commands"),
             (self.post_cmds_lb, "post_commands"),
         ]:
