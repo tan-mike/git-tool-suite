@@ -23,6 +23,7 @@ from utils.git_utils import (
     prune_worktrees,
     get_branches
 )
+from utils.ui_utils import CenteredDialog
 
 def apply_env_overrides(env_path, branch, overrides):
     """Update or append environment variables in a .env file."""
@@ -53,6 +54,42 @@ def apply_env_overrides(env_path, branch, overrides):
         env_path.write_text("\n".join(lines) + "\n")
     except Exception as e:
         print(f"Failed to apply env overrides: {e}")
+
+class CenteredInputDialog(CenteredDialog):
+    """A custom modal input dialog that centers itself on the main application window."""
+    def __init__(self, parent, title, prompt):
+        super().__init__(parent, title, width=450, height=180)
+        self.resizable(False, False)
+        self.result = None
+        
+        # Layout
+        frame = ttk.Frame(self, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text=prompt).pack(anchor=tk.W, pady=(0, 10))
+        
+        self.entry = ttk.Entry(frame, width=40)
+        self.entry.pack(fill=tk.X, pady=(0, 20))
+        self.entry.bind("<Return>", lambda e: self.on_ok())
+        self.entry.bind("<Escape>", lambda e: self.on_cancel())
+        
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X)
+        
+        ttk.Button(btn_frame, text="Cancel", command=self.on_cancel).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(btn_frame, text="OK", command=self.on_ok, style="Accent.TButton").pack(side=tk.RIGHT)
+        
+        self.entry.focus_set()
+        
+        # Wait for dialog to close
+        self.wait_window()
+
+    def on_ok(self):
+        self.result = self.entry.get()
+        self.destroy()
+
+    def on_cancel(self):
+        self.destroy()
 
 class WorktreeManagerApp:
     def __init__(self, parent):
@@ -538,9 +575,9 @@ class WorktreeManagerApp:
 
     # --- Profile Helpers ---
     def _add_list_item(self, listbox, prompt_title, prompt_text):
-        value = simpledialog.askstring(prompt_title, prompt_text, parent=self.parent)
-        if value and value.strip():
-            listbox.insert(tk.END, value.strip())
+        dialog = CenteredInputDialog(self.parent, prompt_title, prompt_text)
+        if dialog.result and dialog.result.strip():
+            listbox.insert(tk.END, dialog.result.strip())
 
     def _remove_list_item(self, listbox):
         selected = listbox.curselection()
