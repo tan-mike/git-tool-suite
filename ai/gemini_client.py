@@ -34,7 +34,7 @@ class GeminiClient:
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=20)
             if response.status_code != 200:
-                print(f"DEBUG: Status {response.status_code}, Body: {response.text}")
+                print(f"DEBUG: Gemini API returned status {response.status_code} (response body omitted, length={len(response.text)})")
             response.raise_for_status()
             data = response.json()
             
