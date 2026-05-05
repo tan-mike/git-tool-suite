@@ -19,7 +19,7 @@ class GeminiClient:
         if not self.api_key:
             return "Error: API key is not configured."
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key={self.api_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
@@ -33,6 +33,8 @@ class GeminiClient:
         
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=20)
+            if response.status_code != 200:
+                print(f"DEBUG: Status {response.status_code}, Body: {response.text}")
             response.raise_for_status()
             data = response.json()
             

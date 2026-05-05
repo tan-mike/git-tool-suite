@@ -31,15 +31,15 @@ class CenteredDialog(tk.Toplevel):
     """
     def __init__(self, parent, title, width=600, height=500):
         super().__init__(parent)
+        self.withdraw()  # Hide the window while we prepare it
         self.title(title)
         self.transient(parent)
         self.grab_set()
         
-        # Ensure it's not resizable by default for simple dialogs
+        # Ensure it's resizable by default
         self.resizable(True, True)
         
         # Get root window coordinates and dimensions
-        # We use winfo_toplevel() to ensure we center relative to the main app window
         root = parent.winfo_toplevel()
         root.update_idletasks() # Ensure dimensions are current
         
@@ -53,6 +53,9 @@ class CenteredDialog(tk.Toplevel):
         y = root_y + (root_height // 2) - (height // 2)
         
         self.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Now that it's positioned, show it
+        self.deiconify()
         
         # Close on Escape key
         self.bind("<Escape>", lambda e: self.destroy())
