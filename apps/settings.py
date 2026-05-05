@@ -15,19 +15,44 @@ from pathlib import Path
 
 from config import Config
 from utils.versioning import is_newer_version
+from utils.ui_utils import CenteredDialog
 
-class SettingsApp:
+class SettingsApp(CenteredDialog):
     def __init__(self, parent):
-        self.parent = parent
+        super().__init__(parent, "Settings", width=650, height=800)
         self.prefs = Config.load_preferences()
         self.api_key_var = tk.StringVar(value=self.prefs.get('api_key', ''))
         self.product_key_var = tk.StringVar(value=self.prefs.get('product_key', ''))
         self.gh_path_var = tk.StringVar(value=self.prefs.get('gh_path', ''))
         
-        self.main_frame = ttk.Frame(self.parent, padding="20")
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        # Add a scrollable container for the settings if they exceed window height
+        self.container = ttk.Frame(self)
+        self.container.pack(fill=tk.BOTH, expand=True)
+        
+        self.canvas = tk.Canvas(self.container, highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self.container, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = ttk.Frame(self.canvas, padding="20")
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.scrollbar.pack(side="right", fill="y")
+        self.canvas.pack(side="left", fill="both", expand=True)
+        
+        # Use scrollable_frame as the main frame for UI elements
+        self.main_frame = self.scrollable_frame
         
         self.build_ui()
+        
+        # Add Close button at the bottom
+        btn_frame = ttk.Frame(self, padding=10)
+        btn_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        ttk.Button(btn_frame, text="Close", command=self.destroy, style="Accent.TButton").pack(side=tk.RIGHT, padx=20, pady=10)
         
     def build_ui(self):
         # Title
@@ -89,7 +114,14 @@ class SettingsApp:
         
         ttk.Label(gh_frame, text="Leave empty to use system PATH.", font=("", 8, "italic")).pack(anchor=tk.W, pady=(5, 0))
 
-        # 3. Update Checker
+        # 3. UI Theme
+        theme_frame = ttk.LabelFrame(self.main_frame, text="UI Theme", padding="15")
+        theme_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        ttk.Label(theme_frame, text="Switch between Dark and Light mode:").pack(anchor=tk.W, pady=(0, 5))
+        ttk.Button(theme_frame, text="Toggle Theme", command=self.toggle_theme).pack(anchor=tk.W)
+
+        # 4. Update Checker
         update_frame = ttk.LabelFrame(self.main_frame, text="Software Update", padding="15")
         update_frame.pack(fill=tk.X, pady=(0, 20))
         
@@ -240,6 +272,20 @@ class SettingsApp:
                     webbrowser.open(release_url)
         else:
             messagebox.showinfo("Up to Date", f"You are running the latest version ({current}).")
+            
+    def toggle_theme(self):
+        try:
+            import sv_ttk
+            sv_ttk.toggle_theme()
+            
+            # Save preference
+            current_theme = sv_ttk.get_theme()
+            prefs = Config.load_preferences()
+            prefs["theme"] = current_theme
+            Config.save_preferences(prefs)
+            
+        except Exception as e:
+            messagebox.showerror("Theme Error", f"Failed to toggle theme: {e}")
     
     def _download_and_install_update(self, download_url):
         """Download and install the update automatically with progress tracking."""

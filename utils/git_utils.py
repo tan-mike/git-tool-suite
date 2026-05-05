@@ -59,11 +59,13 @@ def get_branches(repo_path):
         list[str]: Sorted list of branch names
     """
     branch_output = run_git_command("branch", repo_path)
-    branches = sorted([
-        b.strip().replace("* ", "") 
-        for b in branch_output.splitlines()
-    ])
-    return branches
+    branches = []
+    for line in branch_output.splitlines():
+        branch = line.strip()
+        if branch.startswith("* ") or branch.startswith("+ "):
+            branch = branch[2:]
+        branches.append(branch)
+    return sorted(branches)
 
 
 def get_current_branch(repo_path):
@@ -167,3 +169,82 @@ def get_branches_with_tracking(repo_path):
         return branches_with_tracking
     except Exception:
         return []
+
+
+def list_worktrees(repo_path):
+    """
+    List all worktrees for a repository.
+    
+    Returns:
+        list[dict]: Each dict has 'path', 'head', 'branch' keys.
+    """
+    output = run_git_command("worktree list --porcelain", repo_path)
+    worktrees = []
+    current = {}
+    
+    for line in output.splitlines():
+        if line.startswith("worktree "):
+            if current:
+                worktrees.append(current)
+            current = {"path": line[9:], "head": "", "branch": ""}
+        elif line.startswith("HEAD "):
+            current["head"] = line[5:]
+        elif line.startswith("branch "):
+            # refs/heads/feature-xyz -> feature-xyz
+            current["branch"] = line[7:].replace("refs/heads/", "")
+        elif line == "bare":
+            current["branch"] = "(bare)"
+        elif line == "detached":
+            current["branch"] = "(detached)"
+    
+    if current:
+        worktrees.append(current)
+    
+    return worktrees
+
+
+def add_worktree(repo_path, worktree_path, branch, create_branch=False):
+    """
+    Add a new worktree.
+    Uses subprocess directly to avoid shlex.split issues with quoted paths.
+    """
+    cmd = ["git", "worktree", "add"]
+    if create_branch:
+        cmd += ["-b", branch, worktree_path]
+    else:
+        cmd += [worktree_path, branch]
+    
+    creation_flags = 0
+    if sys.platform == 'win32':
+        creation_flags = subprocess.CREATE_NO_WINDOW
+    
+    process = subprocess.run(
+        cmd, cwd=repo_path, capture_output=True, text=True,
+        encoding='utf-8', errors='ignore', creationflags=creation_flags
+    )
+    process.check_returncode()
+    return process.stdout.strip()
+
+
+def remove_worktree(repo_path, worktree_path, force=False):
+    """Remove a worktree. Uses subprocess directly for path safety."""
+    cmd = ["git", "worktree", "remove"]
+    if force:
+        cmd.append("--force")
+    cmd.append(worktree_path)
+    
+    creation_flags = 0
+    if sys.platform == 'win32':
+        creation_flags = subprocess.CREATE_NO_WINDOW
+    
+    process = subprocess.run(
+        cmd, cwd=repo_path, capture_output=True, text=True,
+        encoding='utf-8', errors='ignore', creationflags=creation_flags
+    )
+    process.check_returncode()
+    return process.stdout.strip()
+
+
+def prune_worktrees(repo_path):
+    """Prune stale worktree references."""
+    return run_git_command("worktree prune", repo_path)

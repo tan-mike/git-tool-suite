@@ -21,6 +21,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import threading
 import datetime
+import sv_ttk
+import tkinter.font as tkfont
 
 # Import our modular components
 from apps.propagator import GitPropagatorApp
@@ -28,7 +30,9 @@ from apps.cleanup import BranchCleanerApp
 from apps.pull_request import PullRequestApp
 from apps.commit_generator import CommitGeneratorApp
 from apps.branch_refresh import BranchRefreshApp
+from apps.worktree import WorktreeManagerApp
 from apps.settings import SettingsApp
+from apps.guide import UserGuideDialog
 from ai.gemini_client import GeminiClient
 from config import Config
 from utils.versioning import is_newer_version
@@ -42,6 +46,23 @@ class GitToolsSuiteApp:
         else:
             title = f"Git Productivity Tools Suite Ver: {Config.APP_VERSION}"
         self.root.title(title)
+        
+        # Initialize modern theme
+        prefs = Config.load_preferences()
+        theme = prefs.get("theme", "dark")
+        try:
+            import sv_ttk
+            sv_ttk.set_theme(theme)
+            
+            # Global Font Scaling: Increase default font size by 2 points
+            default_font = tkfont.nametofont("TkDefaultFont")
+            default_font.configure(size=default_font.cget("size") + 2)
+            
+            # sv_ttk can sometimes make Treeviews too tall. Apply a modest row height.
+            style = ttk.Style()
+            style.configure("Treeview", rowheight=28)
+        except Exception as e:
+            print(f"Warning: Could not set theme: {e}")
         
         # Get screen dimensions
         screen_width = self.root.winfo_screenwidth()
@@ -93,15 +114,18 @@ class GitToolsSuiteApp:
         tab_pr_creator = ttk.Frame(self.notebook)
         tab_commit = ttk.Frame(self.notebook)
         tab_branch_refresh = ttk.Frame(self.notebook)
-        tab_settings = ttk.Frame(self.notebook)
+        tab_worktree = ttk.Frame(self.notebook)
         
         self.notebook.add(tab_propagator, text='Commit Propagator')
         self.notebook.add(tab_cleanup, text='Branch Cleanup')
         self.notebook.add(tab_pr_creator, text='Create Pull Request')
         self.notebook.add(tab_commit, text='Commit Tool')
         self.notebook.add(tab_branch_refresh, text='Branch Refresh')
-        self.notebook.add(tab_settings, text='Settings')
+        self.notebook.add(tab_worktree, text='Worktree Manager')
         self.notebook.pack(expand=True, fill="both", pady=(0, 5))
+
+        # Create Menu Bar
+        self.create_menu_bar()
 
         # Initialize app instances
         self.propagator_app = GitPropagatorApp(tab_propagator)
@@ -109,9 +133,16 @@ class GitToolsSuiteApp:
         self.pr_app = PullRequestApp(tab_pr_creator)
         self.commit_app = CommitGeneratorApp(tab_commit)
         self.branch_refresh_app = BranchRefreshApp(tab_branch_refresh)
-        self.settings_app = SettingsApp(tab_settings)
+        self.worktree_app = WorktreeManagerApp(tab_worktree)
 
-        self.tab_apps = [self.propagator_app, self.cleanup_app, self.pr_app, self.commit_app, self.branch_refresh_app, self.settings_app]
+        self.tab_apps = [
+            self.propagator_app, 
+            self.cleanup_app, 
+            self.pr_app, 
+            self.commit_app, 
+            self.branch_refresh_app, 
+            self.worktree_app
+        ]
 
         if not self.gemini_client:
             self.joke_button.config(state=tk.DISABLED)
@@ -121,6 +152,44 @@ class GitToolsSuiteApp:
         
         # Auto-check for updates once on launch
         self.check_for_updates_on_launch()
+    
+    def create_menu_bar(self):
+        """Create the application menu bar."""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # File Menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Settings...", command=self.open_settings)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        
+        # Help Menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="User Guide", command=self.open_guide)
+        help_menu.add_command(label="Check for Updates", command=self.check_updates_manual)
+        help_menu.add_separator()
+        help_menu.add_command(label="About", command=self.show_about)
+
+    def open_settings(self):
+        """Open the Settings dialog."""
+        SettingsApp(self.root)
+
+    def open_guide(self):
+        """Open the User Guide dialog."""
+        UserGuideDialog(self.root)
+
+    def check_updates_manual(self):
+        """Manually trigger update check by creating a temporary SettingsApp instance."""
+        settings = SettingsApp(self.root)
+        settings.check_for_updates()
+
+    def show_about(self):
+        """Show About dialog."""
+        about_text = f"Git Productivity Tools Suite\nVersion {Config.APP_VERSION}\n\nA professional suite for Git workflow automation."
+        messagebox.showinfo("About", about_text)
     
     def _set_window_icon(self):
         """Set window icon for both development and frozen executable modes."""
@@ -301,10 +370,9 @@ class GitToolsSuiteApp:
         )
         
         if response:
-            # Switch to settings tab and trigger update check
-            self.notebook.select(4)  # Settings tab is index 4
-            # Let the SettingsApp handle the automatic update flow
-            self.settings_app.check_for_updates()
+            # Open settings dialog and trigger update check
+            settings = SettingsApp(self.root)
+            settings.check_for_updates()
 
 
 def cleanup_old_versions():

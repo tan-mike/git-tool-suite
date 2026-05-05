@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.6.0] - 2026-04-29
+
+### Added
+
+- **Worktree Manager**: New tab for managing parallel Git worktrees with automated environment setup.
+  - Multi-repository support for worktree management.
+  - Hierarchical TreeView showing repositories and their active worktrees.
+  - **Environment Automation**: Automated setup profiles per repository.
+    - Automatic file copying (e.g., `.env`, configuration files).
+    - Sequential command execution (e.g., `npm install`, `composer install`).
+    - Post-setup hooks for framework bootstrapping.
+  - Integrated Editor support: Automatically open new worktrees in your favorite IDE.
+  - Cross-platform support (Mac, Linux, Windows).
+  - Robust path handling for directories with spaces.
+
 ## [3.5.4] - 2025-12-26
 
 ### Fixed
